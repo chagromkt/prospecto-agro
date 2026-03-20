@@ -15,7 +15,7 @@ export default function Mensagens() {
   const load = async () => {
     setLoading(true)
     try {
-      const data = await sb(`conversations?profile_id=eq.${getProfileId()}&select=*,leads(full_name,headline,current_company,linkedin_url,avatar_url),campaigns(name)&order=last_message_at.desc.nullslast`)
+      const data = await sb(`conversations?profile_id=eq.${getProfileId()}&select=*,leads(full_name,headline,current_company,linkedin_url,avatar_url),campaigns(name)&order=last_message_at.desc.nullslast`).catch(() => [])
       setConversations(data || [])
     } catch { setConversations([]) }
     setLoading(false)

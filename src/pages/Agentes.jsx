@@ -50,7 +50,10 @@ export default function Agentes() {
     if (!form.name.trim() || !form.objective.trim()) return
     setSaving(true)
     try {
-      const payload = { ...form, profile_id: getProfileId() }
+      // Auto-generate system_prompt if empty
+      const systemPrompt = form.system_prompt.trim() || 
+        `Você é ${form.name}, um assistente especializado em agronegócio brasileiro.\nObjetivo: ${form.objective}\nEstilo: ${form.conversation_style}\nTom: ${form.tone_of_voice}\nContexto: CHA Agromkt / Método S.A.F.R.A.™ — especialistas em agromarketing digital.\nSeja sempre objetivo, relevante e mostre valor real nas suas respostas.`
+      const payload = { ...form, profile_id: getProfileId(), system_prompt: systemPrompt }
       if (mode === 'new') {
         const data = await sb('agents', { method:'POST', body: JSON.stringify(payload) })
         const created = Array.isArray(data) ? data[0] : data

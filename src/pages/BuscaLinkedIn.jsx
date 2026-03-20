@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { sb, getProfileId } from '../config.js'
+import { sb, getProfileId, N8N_SEARCH } from '../config.js'
 
-const N8N_SEARCH = 'https://n8n-webhook.chasocial.com.br/webhook/search-linkedin-leads'
 
 const SEGMENT_KEYWORDS = {
   insumos: { title: 'Diretor Marketing', keywords: 'insumos agrícolas fertilizantes defensivos' },

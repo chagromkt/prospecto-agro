@@ -109,14 +109,17 @@ export default function Listas() {
   const exportCSV = () => {
     if (!leads.length) return
     setExporting(true)
-    const headers = ['Nome','Cargo','Empresa','Localização','ICP Score','Segmento','LinkedIn','Conexão','Dores','Insights','Status RD']
+    const headers = ['Nome','Cargo','Empresa','Localização','ICP Score','Segmento','LinkedIn','Conexão','Dores','Insights','Status RD','Analisado em']
+    const SEG_LABELS = { insumos:'Insumos', cooperativa:'Cooperativa', revenda:'Revenda', agencia_marketing:'Agência', outro:'Outro' }
     const rows = leads.map(l => [
-      l.full_name, l.headline, l.current_company, l.location,
-      l.ai_icp_score || '', l.detected_segment || '',
+      l.full_name || '', l.headline || '', l.current_company || '', l.location || '',
+      l.ai_icp_score != null ? l.ai_icp_score : '',
+      l.detected_segment ? (SEG_LABELS[l.detected_segment] || l.detected_segment) : '',
       l.linkedin_url || '', l.is_connection ? 'Sim' : 'Não',
       (l.ai_pain_points || []).join('; '),
       (l.ai_insights || []).join('; '),
-      l.rd_station_status || 'pending'
+      l.rd_station_status || 'pending',
+      l.ai_analyzed_at ? new Date(l.ai_analyzed_at).toLocaleDateString('pt-BR') : ''
     ])
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
