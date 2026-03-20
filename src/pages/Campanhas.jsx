@@ -19,7 +19,7 @@ const stepTypeMap = Object.fromEntries(STEP_TYPES.map(s => [s.id, s]))
 
 // ─── Node component ──────────────────────────────────────────────────────────
 const FlowNode = ({ step, index, selected, onClick, onDelete, isLast }) => {
-  const type = stepTypeMap[step.type] || { label: step.type, icon: '?', color: '#9a9ab0' }
+  const type = stepTypeMap[step.step_type] || { label: step.step_type, icon: '?', color: '#9a9ab0' }
   const sel = selected
 
   return (
@@ -85,7 +85,7 @@ const FlowNode = ({ step, index, selected, onClick, onDelete, isLast }) => {
 
 // ─── Step config panel ───────────────────────────────────────────────────────
 const StepConfig = ({ step, onUpdate, agents }) => {
-  const type = stepTypeMap[step.type] || {}
+  const type = stepTypeMap[step.step_type] || {}
   const cfg = step.config || {}
 
   const upd = (key, val) => onUpdate({ ...step, config: { ...cfg, [key]: val } })
@@ -104,7 +104,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </div>
 
       {/* Send Connection */}
-      {step.type === 'send_connection' && (<>
+      {step.step_type === 'send_connection' && (<>
         {lbl('Nota de conexão (opcional, máx 300 caracteres)')}
         <textarea value={cfg.note || ''} onChange={e => upd('note', e.target.value)} placeholder="Ex: Olá {nome}, vi seu trabalho em {empresa} e gostaria de conectar..." maxLength={300} rows={4} style={{ ...inp, resize: 'vertical', fontFamily: 'Georgia, serif' }} />
         <div style={{ fontSize: 11, color: '#c0c0d0', marginTop: -8, marginBottom: 12 }}>{(cfg.note || '').length}/300 caracteres</div>
@@ -117,7 +117,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Send Message */}
-      {step.type === 'send_message' && (<>
+      {step.step_type === 'send_message' && (<>
         {lbl('Mensagem')}
         <textarea value={cfg.message || ''} onChange={e => upd('message', e.target.value)} placeholder="Ex: Olá {nome}! Vi que você atua em {empresa}. Tenho algo que pode te interessar..." rows={5} style={{ ...inp, resize: 'vertical', fontFamily: 'Georgia, serif' }} />
         {lbl('Variáveis disponíveis')}
@@ -135,7 +135,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Comment Post */}
-      {step.type === 'comment_post' && (<>
+      {step.step_type === 'comment_post' && (<>
         {lbl('Comentário')}
         <textarea value={cfg.comment || ''} onChange={e => upd('comment', e.target.value)} placeholder="Ex: Excelente perspectiva sobre {tema}! Concordo totalmente..." rows={3} style={{ ...inp, resize: 'vertical', fontFamily: 'Georgia, serif' }} />
         {lbl('Gerar com IA?')}
@@ -147,7 +147,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Wait Time */}
-      {step.type === 'wait_time' && (<>
+      {step.step_type === 'wait_time' && (<>
         {lbl('Aguardar quantos dias?')}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <input type="range" min={1} max={30} value={cfg.wait_days || 1} onChange={e => upd('wait_days', parseInt(e.target.value))} style={{ flex: 1, accentColor: '#1e6b3a' }} />
@@ -168,7 +168,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Wait Connection */}
-      {step.type === 'wait_connection' && (<>
+      {step.step_type === 'wait_connection' && (<>
         {lbl('Aguardar até quantos dias?')}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <input type="range" min={1} max={30} value={cfg.wait_days || 7} onChange={e => upd('wait_days', parseInt(e.target.value))} style={{ flex: 1, accentColor: '#1e6b3a' }} />
@@ -184,7 +184,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Wait Reply */}
-      {step.type === 'wait_reply' && (<>
+      {step.step_type === 'wait_reply' && (<>
         {lbl('Aguardar resposta por até quantos dias?')}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <input type="range" min={1} max={30} value={cfg.wait_days || 3} onChange={e => upd('wait_days', parseInt(e.target.value))} style={{ flex: 1, accentColor: '#1e6b3a' }} />
@@ -206,7 +206,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Connect Agent */}
-      {step.type === 'connect_agent' && (<>
+      {step.step_type === 'connect_agent' && (<>
         {lbl('Selecionar agente')}
         <select value={cfg.agent_id || ''} onChange={e => upd('agent_id', e.target.value)} style={inp}>
           <option value="">Selecione um agente...</option>
@@ -221,7 +221,7 @@ const StepConfig = ({ step, onUpdate, agents }) => {
       </>)}
 
       {/* Check Connection / Visit Profile / Like Post — sem config extra */}
-      {['check_connection', 'visit_profile', 'like_post'].includes(step.type) && (
+      {['check_connection', 'visit_profile', 'like_post'].includes(step.step_type) && (
         <div style={{ background: '#f8f8fc', borderRadius: 10, padding: 14, fontSize: 13, color: '#6a6a7a', lineHeight: 1.7 }}>
           <strong style={{ color: '#1a1a2e' }}>Ação automática</strong><br />
           Este passo é executado automaticamente pelo motor de campanha via Unipile. Nenhuma configuração necessária.
@@ -293,7 +293,7 @@ export default function Campanhas() {
     const newStep = {
       campaign_id: selCampaign.id,
       step_order: idx + 1,
-      type: typeId,
+      step_type: typeId,
       config: {},
       status: 'pending'
     }
