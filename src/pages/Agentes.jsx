@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID } from '../config.js'
+import { sb, getProfileId } from '../config.js'
 
 const MOCK_AGENTS = [
   { id: 'a1', name: 'Consultor Agro', objective: 'Marcar diagnóstico gratuito com gestores do agro', conversation_style: 'consultivo', tone_of_voice: 'direto e empático', is_active: true, max_messages_per_lead: 5 },
@@ -14,7 +14,7 @@ export default function Agentes() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    sb(`agents?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+    sb(`agents?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       .then(d => { setAgents(d); if (d.length) setSel(d[0]) })
       .catch(() => { setAgents(MOCK_AGENTS); setSel(MOCK_AGENTS[0]) })
   }, [])
@@ -23,7 +23,7 @@ export default function Agentes() {
     if (!form.name || !form.objective) return
     setSaving(true)
     try {
-      const data = await sb('agents', { method: 'POST', body: JSON.stringify({ ...form, profile_id: PROFILE_ID, system_prompt: form.system_prompt || generatePrompt(form) }) })
+      const data = await sb('agents', { method: 'POST', body: JSON.stringify({ ...form, profile_id: getProfileId(), system_prompt: form.system_prompt || generatePrompt(form) }) })
       const na = Array.isArray(data) ? data[0] : data
       setAgents(p => [na, ...p]); setSel(na)
     } catch {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID, N8N_LEAD, SEG, ICP, COLORS, MOCK_LISTS, MOCK_LEADS } from '../config.js'
+import { sb, getProfileId, N8N_LEAD, SEG, ICP, COLORS, MOCK_LISTS, MOCK_LEADS } from '../config.js'
 
 const T = { bg: '#ffffff', bgSub: '#f8f8fc', border: '#e8e8f0', borderFocus: '#2d9e4f', text: '#1a1a2e', textSub: '#6a6a7a', textMuted: '#9a9ab0', accent: '#1e6b3a', accentLight: '#f0f8f3' }
 
@@ -20,7 +20,7 @@ export default function Listas() {
 
   const fetchLists = async () => {
     try {
-      const data = await sb(`lead_lists?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+      const data = await sb(`lead_lists?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       setLists(data); if (data.length > 0) setSel(data[0])
     } catch { setLists(MOCK_LISTS); setSel(MOCK_LISTS[0]) }
   }
@@ -41,7 +41,7 @@ export default function Listas() {
   const createList = async () => {
     if (!newName.trim()) return
     try {
-      const data = await sb('lead_lists', { method: 'POST', body: JSON.stringify({ profile_id: PROFILE_ID, name: newName, color: newColor, total_leads: 0, analyzed_leads: 0 }) })
+      const data = await sb('lead_lists', { method: 'POST', body: JSON.stringify({ profile_id: getProfileId(), name: newName, color: newColor, total_leads: 0, analyzed_leads: 0 }) })
       const nl = Array.isArray(data) ? data[0] : data
       setLists(p => [nl, ...p]); setSel(nl)
     } catch {
@@ -54,7 +54,7 @@ export default function Listas() {
   const enrichLead = async (lead) => {
     setEnriching(lead.id)
     try {
-      await fetch(N8N_LEAD, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile_id: PROFILE_ID, lead_id: lead.id, full_name: lead.full_name, headline: lead.headline, current_company: lead.current_company, location: lead.location }) })
+      await fetch(N8N_LEAD, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile_id: getProfileId(), lead_id: lead.id, full_name: lead.full_name, headline: lead.headline, current_company: lead.current_company, location: lead.location }) })
       await fetchLeads(sel.id)
     } catch {}
     setEnriching(null)

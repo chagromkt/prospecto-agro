@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID } from '../config.js'
+import { sb, getProfileId } from '../config.js'
 
 const MetricCard = ({ label, value, color = '#1e6b3a', editable, onSave }) => {
   const [editing, setEditing] = useState(false)
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const fetchMetrics = async () => {
     setLoading(true)
     try {
-      const data = await sb(`dashboard_summary?profile_id=eq.${PROFILE_ID}`)
+      const data = await sb(`dashboard_summary?profile_id=eq.${getProfileId()}`)
       setMetrics(data?.[0] || {})
     } catch {
       setMetrics({ connections_this_week: 12, connections_this_month: 47, conversations_this_month: 23, comments_this_month: 89, meetings_this_month: 5, proposals_this_month: 3, sales_this_month: 1, revenue_this_month: 4800 })
@@ -44,7 +44,7 @@ export default function Dashboard() {
   const updateMetric = async (field, value) => {
     const today = new Date().toISOString().split('T')[0]
     try {
-      await sb(`dashboard_metrics?profile_id=eq.${PROFILE_ID}&metric_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ [field]: parseInt(value) }) })
+      await sb(`dashboard_metrics?profile_id=eq.${getProfileId()}&metric_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ [field]: parseInt(value) }) })
       fetchMetrics()
     } catch {}
   }

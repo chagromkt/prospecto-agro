@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID } from '../config.js'
+import { sb, getProfileId } from '../config.js'
 
 const N8N_SEARCH = 'https://n8n-webhook.chasocial.com.br/webhook/search-linkedin-leads'
 
@@ -28,17 +28,17 @@ export default function BuscaLinkedIn() {
 
   useEffect(() => {
     // Carrega listas
-    sb(`lead_lists?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+    sb(`lead_lists?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       .then(d => { setLists(d); if (d.length) setForm(p => ({...p, list_id: d[0].id})) })
       .catch(() => {})
 
     // Carrega contas LinkedIn conectadas
-    sb(`linkedin_accounts?profile_id=eq.${PROFILE_ID}&status=eq.active`)
+    sb(`linkedin_accounts?profile_id=eq.${getProfileId()}&status=eq.active`)
       .then(d => { setAccounts(d); if (d.length) setForm(p => ({...p, account_id: d[0].unipile_account_id})) })
       .catch(() => {})
 
     // Histórico de buscas
-    sb(`activity_log?profile_id=eq.${PROFILE_ID}&action_type=eq.lead_imported&order=created_at.desc&limit=10`)
+    sb(`activity_log?profile_id=eq.${getProfileId()}&action_type=eq.lead_imported&order=created_at.desc&limit=10`)
       .then(setHistory).catch(() => {})
   }, [])
 
@@ -55,7 +55,7 @@ export default function BuscaLinkedIn() {
       const res = await fetch(N8N_SEARCH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile_id: PROFILE_ID, ...form })
+        body: JSON.stringify({ profile_id: getProfileId(), ...form })
       })
       const data = await res.json()
       setResult(data)

@@ -2,7 +2,7 @@ import { NAV } from '../config.js'
 
 export default function Sidebar({ page, setPage, user, onLogout }) {
   const initials = user?.email?.[0]?.toUpperCase() || 'U'
-  const emailShort = user?.email?.split('@')[0] || 'Usuário'
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'
 
   return (
     <div style={{ width: 220, background: '#f0f0f5', borderRight: '1px solid #e0e0ea', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
@@ -41,7 +41,7 @@ export default function Sidebar({ page, setPage, user, onLogout }) {
             {initials}
           </div>
           <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: 12, color: '#2a2a3e', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emailShort}</div>
+            <div style={{ fontSize: 12, color: '#2a2a3e', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
             <div style={{ fontSize: 10, color: '#9a9ab0' }}>CHA Agromkt</div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID, STEP_TYPES } from '../config.js'
+import { sb, getProfileId, STEP_TYPES } from '../config.js'
 
 const MOCK_CAMPS = [
   { id: 'c1', name: 'Revendas Agro — Abordagem Inicial', status: 'active', connections_sent: 23, messages_sent: 11, replies_received: 4, created_at: new Date().toISOString() },
@@ -16,7 +16,7 @@ export default function Campanhas() {
   const [dragging, setDragging] = useState(null)
 
   useEffect(() => {
-    sb(`campaigns?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+    sb(`campaigns?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       .then(d => { setCamps(d); if (d.length) setSel(d[0]) })
       .catch(() => { setCamps(MOCK_CAMPS); setSel(MOCK_CAMPS[0]) })
   }, [])
@@ -30,7 +30,7 @@ export default function Campanhas() {
   const createCampaign = async () => {
     if (!newName.trim()) return
     try {
-      const camp = await sb('campaigns', { method: 'POST', body: JSON.stringify({ profile_id: PROFILE_ID, name: newName, objective: newObj, status: 'draft', daily_limit: 20 }) })
+      const camp = await sb('campaigns', { method: 'POST', body: JSON.stringify({ profile_id: getProfileId(), name: newName, objective: newObj, status: 'draft', daily_limit: 20 }) })
       const nc = Array.isArray(camp) ? camp[0] : camp
       for (let i = 0; i < steps.length; i++) {
         await sb('campaign_steps', { method: 'POST', body: JSON.stringify({ campaign_id: nc.id, step_order: i+1, step_type: steps[i].step_type, config: steps[i].config }) })

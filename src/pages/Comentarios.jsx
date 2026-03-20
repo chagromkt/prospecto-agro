@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID } from '../config.js'
+import { sb, getProfileId } from '../config.js'
 
 export default function Comentarios() {
   const [camps, setCamps] = useState([])
@@ -8,7 +8,7 @@ export default function Comentarios() {
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
-    sb(`comment_campaigns?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+    sb(`comment_campaigns?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       .then(setCamps)
       .catch(() => setCamps([
         { id: 'cc1', name: 'Comentários Revendas', objective: 'Gerar visibilidade entre gestores de revendas', tone_of_voice: 'consultivo', max_comments_per_day: 15, max_comments_per_person: 2, is_active: true, total_comments: 47 },
@@ -24,7 +24,7 @@ export default function Comentarios() {
 
   const save = async () => {
     try {
-      const data = await sb('comment_campaigns', { method: 'POST', body: JSON.stringify({ ...form, profile_id: PROFILE_ID, total_comments: 0 }) })
+      const data = await sb('comment_campaigns', { method: 'POST', body: JSON.stringify({ ...form, profile_id: getProfileId(), total_comments: 0 }) })
       setCamps(p => [Array.isArray(data) ? data[0] : data, ...p])
     } catch {
       setCamps(p => [{ id: `cc${Date.now()}`, ...form, total_comments: 0 }, ...p])

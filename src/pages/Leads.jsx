@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID, SEG, ICP, MOCK_LEADS } from '../config.js'
+import { sb, getProfileId, SEG, ICP, MOCK_LEADS } from '../config.js'
 
 export default function Leads() {
   const [leads, setLeads] = useState([])
@@ -9,7 +9,7 @@ export default function Leads() {
   const [scoreFilter, setScoreFilter] = useState('all')
 
   useEffect(() => {
-    sb(`leads?profile_id=eq.${PROFILE_ID}&order=ai_icp_score.desc.nullslast&limit=100`)
+    sb(`leads?profile_id=eq.${getProfileId()}&order=ai_icp_score.desc.nullslast&limit=100`)
       .then(setLeads).catch(() => setLeads(MOCK_LEADS))
   }, [])
 

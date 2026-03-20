@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, PROFILE_ID, SB_KEY, SB_URL } from '../config.js'
+import { sb, getProfileId, SB_KEY, SB_URL } from '../config.js'
 
 export default function Conteudo() {
   const [posts, setPosts] = useState([])
@@ -8,7 +8,7 @@ export default function Conteudo() {
   const [form, setForm] = useState({ agent_prompt: '', tone_of_voice: 'consultivo e direto', knowledge_context: '', generated_text: '', final_text: '', scheduled_for: '' })
 
   useEffect(() => {
-    sb(`content_posts?profile_id=eq.${PROFILE_ID}&order=created_at.desc`)
+    sb(`content_posts?profile_id=eq.${getProfileId()}&order=created_at.desc`)
       .then(setPosts)
       .catch(() => setPosts([
         { id: 'p1', final_text: 'O produtor rural de hoje não compra mais insumo — ele compra resultado. Se sua estratégia de marketing ainda fala sobre produto, está na hora de falar sobre transformação. Método S.A.F.R.A.™ #agromarketing', status: 'published', published_at: new Date().toISOString(), reactions: 234, comments: 18 },
@@ -38,7 +38,7 @@ export default function Conteudo() {
   }
 
   const schedule = async () => {
-    const payload = { profile_id: PROFILE_ID, generated_text: form.generated_text, final_text: form.final_text || form.generated_text, agent_prompt: form.agent_prompt, tone_of_voice: form.tone_of_voice, status: form.scheduled_for ? 'scheduled' : 'draft', scheduled_for: form.scheduled_for || null }
+    const payload = { profile_id: getProfileId(), generated_text: form.generated_text, final_text: form.final_text || form.generated_text, agent_prompt: form.agent_prompt, tone_of_voice: form.tone_of_voice, status: form.scheduled_for ? 'scheduled' : 'draft', scheduled_for: form.scheduled_for || null }
     try {
       const data = await sb('content_posts', { method: 'POST', body: JSON.stringify(payload) })
       setPosts(p => [Array.isArray(data) ? data[0] : data, ...p])
