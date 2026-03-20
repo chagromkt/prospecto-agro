@@ -1,128 +1,202 @@
 import { useState, useEffect } from 'react'
 import { sb, getProfileId } from '../config.js'
 
-const MOCK_AGENTS = [
-  { id: 'a1', name: 'Consultor Agro', objective: 'Marcar diagnóstico gratuito com gestores do agro', conversation_style: 'consultivo', tone_of_voice: 'direto e empático', is_active: true, max_messages_per_lead: 5 },
-  { id: 'a2', name: 'Especialista Insumos', objective: 'Abordar diretores de marketing de insumos', conversation_style: 'formal', tone_of_voice: 'técnico e objetivo', is_active: false, max_messages_per_lead: 3 },
+const STYLES = [
+  { id: 'consultivo', label: 'Consultivo' },
+  { id: 'direto', label: 'Direto e objetivo' },
+  { id: 'educativo', label: 'Educativo' },
+  { id: 'amigavel', label: 'Amigável e informal' },
+  { id: 'tecnico', label: 'Técnico especialista' },
 ]
+
+const TONES = [
+  { id: 'profissional', label: 'Profissional' },
+  { id: 'empatico', label: 'Empático' },
+  { id: 'urgente', label: 'Urgente' },
+  { id: 'descontraido', label: 'Descontraído' },
+  { id: 'assertivo', label: 'Assertivo' },
+]
+
+const EMPTY = { name:'', objective:'', conversation_style:'consultivo', tone_of_voice:'profissional', system_prompt:'', max_messages_per_lead:5, delay_between_messages:60, is_active:true }
 
 export default function Agentes() {
   const [agents, setAgents] = useState([])
   const [sel, setSel] = useState(null)
-  const [showNew, setShowNew] = useState(false)
-  const [form, setForm] = useState({ name: '', objective: '', conversation_style: 'consultivo', tone_of_voice: '', system_prompt: '', max_messages_per_lead: 5, response_delay_minutes: 30 })
+  const [form, setForm] = useState(EMPTY)
+  const [mode, setMode] = useState('list') // list | new | edit
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(null)
 
-  useEffect(() => {
-    sb(`agents?profile_id=eq.${getProfileId()}&order=created_at.desc`)
-      .then(d => { setAgents(d); if (d.length) setSel(d[0]) })
-      .catch(() => { setAgents(MOCK_AGENTS); setSel(MOCK_AGENTS[0]) })
-  }, [])
+  useEffect(() => { load() }, [])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const data = await sb(`agents?profile_id=eq.${getProfileId()}&order=created_at.desc`)
+      setAgents(data || [])
+    } catch { setAgents([]) }
+    setLoading(false)
+  }
+
+  const openNew = () => { setForm(EMPTY); setSel(null); setMode('new') }
+
+  const openEdit = (a) => {
+    setForm({ name: a.name||'', objective: a.objective||'', conversation_style: a.conversation_style||'consultivo', tone_of_voice: a.tone_of_voice||'profissional', system_prompt: a.system_prompt||'', max_messages_per_lead: a.max_messages_per_lead||5, delay_between_messages: a.delay_between_messages||60, is_active: a.is_active })
+    setSel(a); setMode('edit')
+  }
 
   const save = async () => {
-    if (!form.name || !form.objective) return
+    if (!form.name.trim() || !form.objective.trim()) return
     setSaving(true)
     try {
-      const data = await sb('agents', { method: 'POST', body: JSON.stringify({ ...form, profile_id: getProfileId(), system_prompt: form.system_prompt || generatePrompt(form) }) })
-      const na = Array.isArray(data) ? data[0] : data
-      setAgents(p => [na, ...p]); setSel(na)
-    } catch {
-      const na = { id: `a${Date.now()}`, ...form, is_active: true }
-      setAgents(p => [na, ...p]); setSel(na)
-    }
-    setSaving(false); setShowNew(false); setForm({ name: '', objective: '', conversation_style: 'consultivo', tone_of_voice: '', system_prompt: '', max_messages_per_lead: 5, response_delay_minutes: 30 })
+      const payload = { ...form, profile_id: getProfileId() }
+      if (mode === 'new') {
+        const data = await sb('agents', { method:'POST', body: JSON.stringify(payload) })
+        const created = Array.isArray(data) ? data[0] : data
+        setAgents(p => [created, ...p])
+      } else {
+        await sb(`agents?id=eq.${sel.id}`, { method:'PATCH', body: JSON.stringify(form) })
+        setAgents(p => p.map(a => a.id===sel.id ? {...a, ...form} : a))
+      }
+      setMode('list'); setSel(null)
+    } catch (e) { console.error(e) }
+    setSaving(false)
   }
 
-  const generatePrompt = (f) => `Você é um especialista em marketing para o agronegócio brasileiro, representando a CHA Agromkt. Seu objetivo: ${f.objective}. Tom: ${f.tone_of_voice || f.conversation_style}. Método: S.A.F.R.A.™. Regras: nunca seja insistente, use linguagem do campo, CTA sempre suave (conversa de 15 min).`
-
-  const toggleActive = async (agent) => {
-    try { await sb(`agents?id=eq.${agent.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !agent.is_active }) }) } catch {}
-    setAgents(p => p.map(a => a.id === agent.id ? { ...a, is_active: !a.is_active } : a))
-    if (sel?.id === agent.id) setSel(prev => ({ ...prev, is_active: !prev.is_active }))
+  const toggleActive = async (a) => {
+    try {
+      await sb(`agents?id=eq.${a.id}`, { method:'PATCH', body: JSON.stringify({ is_active: !a.is_active }) })
+      setAgents(p => p.map(x => x.id===a.id ? {...x, is_active:!a.is_active} : x))
+    } catch {}
   }
 
-  const F = ({ label, children }) => (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, color: '#9a9ab0', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
-      {children}
+  const del = async (a) => {
+    if (!confirm(`Excluir agente "${a.name}"?`)) return
+    setDeleting(a.id)
+    try {
+      await sb(`agents?id=eq.${a.id}`, { method:'DELETE' })
+      setAgents(p => p.filter(x => x.id!==a.id))
+      if (sel?.id === a.id) { setSel(null); setMode('list') }
+    } catch {}
+    setDeleting(null)
+  }
+
+  const inp = { width:'100%', background:'#f8f8fc', border:'1px solid #e0e0ea', borderRadius:8, padding:'9px 12px', color:'#1a1a2e', fontSize:13, marginBottom:12, fontFamily:'Georgia, serif' }
+  const lbl = (t) => <div style={{ fontSize:11, color:'#9a9ab0', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6, fontWeight:600 }}>{t}</div>
+
+  if (mode === 'new' || mode === 'edit') return (
+    <div style={{ flex:1, overflowY:'auto', padding:'28px 32px', background:'#ffffff' }}>
+      <div style={{ maxWidth:600 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:28 }}>
+          <button onClick={() => setMode('list')} style={{ background:'none', border:'none', color:'#9a9ab0', fontSize:20, cursor:'pointer' }}>←</button>
+          <h1 style={{ fontSize:20, color:'#1a1a2e', fontWeight:700 }}>{mode==='new' ? 'Novo Agente' : `Editar: ${sel?.name}`}</h1>
+        </div>
+
+        {lbl('Nome do agente')}
+        <input value={form.name} onChange={e => setForm(p=>({...p,name:e.target.value}))} placeholder="Ex: Consultor Agro Premium" style={inp} />
+
+        {lbl('Objetivo principal')}
+        <textarea value={form.objective} onChange={e => setForm(p=>({...p,objective:e.target.value}))} placeholder="Ex: Marcar diagnóstico gratuito com gestores do agro que já aceitaram conexão" rows={3} style={{ ...inp, resize:'vertical' }} />
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div>
+            {lbl('Estilo de conversa')}
+            <select value={form.conversation_style} onChange={e => setForm(p=>({...p,conversation_style:e.target.value}))} style={inp}>
+              {STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            {lbl('Tom de voz')}
+            <select value={form.tone_of_voice} onChange={e => setForm(p=>({...p,tone_of_voice:e.target.value}))} style={inp}>
+              {TONES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div>
+            {lbl('Máx. mensagens por lead')}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+              <input type="range" min={1} max={20} value={form.max_messages_per_lead} onChange={e => setForm(p=>({...p,max_messages_per_lead:parseInt(e.target.value)}))} style={{ flex:1, accentColor:'#1e6b3a' }} />
+              <span style={{ fontSize:18, fontWeight:900, color:'#1e6b3a', fontFamily:'monospace', minWidth:28 }}>{form.max_messages_per_lead}</span>
+            </div>
+          </div>
+          <div>
+            {lbl('Delay entre mensagens (min)')}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+              <input type="range" min={10} max={480} step={10} value={form.delay_between_messages} onChange={e => setForm(p=>({...p,delay_between_messages:parseInt(e.target.value)}))} style={{ flex:1, accentColor:'#1e6b3a' }} />
+              <span style={{ fontSize:18, fontWeight:900, color:'#1e6b3a', fontFamily:'monospace', minWidth:36 }}>{form.delay_between_messages}</span>
+            </div>
+          </div>
+        </div>
+
+        {lbl('System prompt (deixe vazio para gerar automaticamente)')}
+        <textarea value={form.system_prompt} onChange={e => setForm(p=>({...p,system_prompt:e.target.value}))} placeholder="Se vazio, o sistema gera um prompt baseado no objetivo, estilo e tom escolhidos..." rows={6} style={{ ...inp, resize:'vertical' }} />
+
+        <div style={{ display:'flex', gap:10, marginTop:8 }}>
+          <button onClick={() => setMode('list')} style={{ flex:1, background:'#fff', border:'1px solid #e0e0ea', borderRadius:8, color:'#6a6a7a', padding:12, fontSize:13 }}>Cancelar</button>
+          <button onClick={save} disabled={saving || !form.name.trim() || !form.objective.trim()} style={{ flex:2, background:'linear-gradient(135deg,#1e6b3a,#2d9e4f)', border:'none', borderRadius:8, color:'#fff', padding:12, fontSize:13, fontWeight:700 }}>
+            {saving ? 'Salvando...' : mode==='new' ? 'Criar Agente' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </div>
     </div>
   )
-  const inp = { background: '#f8f8fc', border: '1px solid #e0e0ea', borderRadius: 8, padding: '10px 12px', color: '#2a2a3e', fontSize: 13, width: '100%' }
 
   return (
-    <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-      <div style={{ width: 260, background: '#f8f8fc', borderRight: '1px solid #e8e8f0', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid #e8e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#1e6b3a', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Agentes</span>
-          <button onClick={() => setShowNew(true)} style={{ background: '#b8e8c8', border: 'none', borderRadius: 6, color: '#1e6b3a', padding: '4px 10px', fontSize: 12 }}>+ Novo</button>
+    <div style={{ flex:1, overflowY:'auto', padding:'28px 32px', background:'#ffffff' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+        <div>
+          <h1 style={{ fontSize:20, color:'#1a1a2e', fontWeight:700 }}>Agentes de Conversa</h1>
+          <p style={{ fontSize:12, color:'#9a9ab0', marginTop:4 }}>Configure agentes de IA para responder leads automaticamente</p>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+        <button onClick={openNew} style={{ background:'linear-gradient(135deg,#1e6b3a,#2d9e4f)', border:'none', borderRadius:8, color:'#fff', padding:'10px 20px', fontSize:13, fontWeight:600 }}>+ Novo Agente</button>
+      </div>
+
+      {loading ? <div style={{ textAlign:'center', color:'#9a9ab0', padding:40 }}>Carregando...</div>
+      : agents.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60, color:'#c0c0d0' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🤖</div>
+          <div style={{ fontSize:14, marginBottom:20 }}>Nenhum agente criado ainda</div>
+          <button onClick={openNew} style={{ background:'#f0f8f3', border:'1px solid #b8e8c8', borderRadius:8, color:'#1e6b3a', padding:'10px 20px', fontSize:13 }}>Criar primeiro agente</button>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:16 }}>
           {agents.map(a => (
-            <div key={a.id} onClick={() => setSel(a)} style={{ padding: 14, borderRadius: 8, marginBottom: 4, cursor: 'pointer', background: sel?.id === a.id ? '#f0f8f3' : 'transparent', border: `1px solid ${sel?.id === a.id ? '#b8e8c8' : 'transparent'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: sel?.id === a.id ? '#1e6b3a' : '#a09070', fontWeight: 600 }}>{a.name}</span>
-                <span style={{ fontSize: 9, color: a.is_active ? '#059669' : '#9a9ab0', background: a.is_active ? '#05966915' : 'transparent', padding: '2px 6px', borderRadius: 8 }}>{a.is_active ? 'Ativo' : 'Inativo'}</span>
+            <div key={a.id} style={{ background:'#ffffff', border:'1px solid #e8e8f0', borderRadius:12, padding:20, boxShadow:'0 1px 4px rgba(0,0,0,0.05)', position:'relative' }}>
+              {/* Active indicator */}
+              <div style={{ position:'absolute', top:16, right:16, display:'flex', alignItems:'center', gap:8 }}>
+                <button onClick={() => toggleActive(a)} style={{ width:40, height:22, borderRadius:11, background:a.is_active?'#1e6b3a':'#e0e0ea', border:'none', cursor:'pointer', position:'relative', transition:'all 0.2s' }}>
+                  <div style={{ width:16, height:16, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left:a.is_active?21:3, transition:'all 0.2s' }} />
+                </button>
               </div>
-              <div style={{ fontSize: 11, color: '#9a9ab0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.objective}</div>
+
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, paddingRight:60 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:'#f0f8f3', border:'1px solid #b8e8c8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🤖</div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#1a1a2e' }}>{a.name}</div>
+                  <div style={{ fontSize:11, color:a.is_active?'#059669':'#9a9ab0', fontWeight:600 }}>{a.is_active ? '● Ativo' : '○ Inativo'}</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize:12, color:'#6a6a7a', lineHeight:1.6, marginBottom:12, minHeight:36 }}>{a.objective}</div>
+
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
+                {[a.conversation_style, a.tone_of_voice].filter(Boolean).map((tag,i) => (
+                  <span key={i} style={{ fontSize:10, background:'#f0f0f5', color:'#6a6a7a', padding:'2px 8px', borderRadius:6 }}>{tag}</span>
+                ))}
+                <span style={{ fontSize:10, background:'#f0f8f3', color:'#1e6b3a', padding:'2px 8px', borderRadius:6 }}>{a.max_messages_per_lead||5} msgs/lead</span>
+              </div>
+
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => openEdit(a)} style={{ flex:1, background:'#f8f8fc', border:'1px solid #e0e0ea', borderRadius:8, color:'#6a6a7a', padding:'7px', fontSize:12, fontWeight:600 }}>✎ Editar</button>
+                <button onClick={() => del(a)} disabled={deleting===a.id} style={{ background:'#fff5f5', border:'1px solid #ffd0d0', borderRadius:8, color:'#dc2626', padding:'7px 12px', fontSize:12 }}>
+                  {deleting===a.id ? '...' : '✕'}
+                </button>
+              </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
-        {!sel ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9a9ab0' }}>Selecione um agente</div> : (<>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
-            <div>
-              <h2 style={{ fontSize: 20, color: '#1e6b3a', fontWeight: 700, marginBottom: 4 }}>{sel.name}</h2>
-              <p style={{ fontSize: 12, color: '#6a6a7a' }}>{sel.conversation_style} · {sel.tone_of_voice}</p>
-            </div>
-            <button onClick={() => toggleActive(sel)} style={{ background: sel.is_active ? 'transparent' : 'linear-gradient(135deg,#1e6b3a,#2d9e4f)', border: sel.is_active ? '1px solid #ffd0d0' : 'none', borderRadius: 8, color: sel.is_active ? '#dc2626' : '#1a1a2e', padding: '8px 18px', fontSize: 13 }}>
-              {sel.is_active ? 'Desativar' : 'Ativar'}
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-            {[['Objetivo', sel.objective],['Tom de Voz', sel.tone_of_voice || '—'],['Máx. Mensagens/Lead', sel.max_messages_per_lead],['Delay entre msgs', `${sel.response_delay_minutes} min`]].map(([l,v]) => (
-              <div key={l} style={{ background: '#ffffff', border: '1px solid #e8e8f0', borderRadius: 10, padding: 16 }}>
-                <div style={{ fontSize: 11, color: '#9a9ab0', marginBottom: 6, textTransform: 'uppercase' }}>{l}</div>
-                <div style={{ fontSize: 13, color: '#4a4a5a' }}>{v}</div>
-              </div>
-            ))}
-          </div>
-
-          {sel.system_prompt && (
-            <div style={{ background: '#ffffff', border: '1px solid #e8e8f0', borderRadius: 10, padding: 20 }}>
-              <div style={{ fontSize: 11, color: '#9a9ab0', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>System Prompt</div>
-              <p style={{ fontSize: 12, color: '#4a4a5a', lineHeight: 1.7 }}>{sel.system_prompt}</p>
-            </div>
-          )}
-        </>)}
-      </div>
-
-      {showNew && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#ffffff', border: '1px solid #e0e0ea', borderRadius: 14, padding: 28, width: 560, maxHeight: '85vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, color: '#1e6b3a', marginBottom: 20, fontWeight: 700 }}>Novo Agente</h2>
-            <F label="Nome do agente"><input value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))} placeholder="Ex: Consultor Revendas Agro" style={inp} /></F>
-            <F label="Objetivo"><textarea value={form.objective} onChange={e => setForm(p => ({...p, objective: e.target.value}))} placeholder="Ex: Marcar diagnóstico gratuito com gestores..." rows={2} style={{ ...inp, resize: 'none' }} /></F>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <F label="Estilo de conversa">
-                <select value={form.conversation_style} onChange={e => setForm(p => ({...p, conversation_style: e.target.value}))} style={inp}>
-                  {['consultivo','formal','descontraído','técnico','empático'].map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </F>
-              <F label="Tom de voz"><input value={form.tone_of_voice} onChange={e => setForm(p => ({...p, tone_of_voice: e.target.value}))} placeholder="Ex: direto e empático" style={inp} /></F>
-            </div>
-            <F label="System Prompt (opcional — gerado automaticamente se vazio)">
-              <textarea value={form.system_prompt} onChange={e => setForm(p => ({...p, system_prompt: e.target.value}))} placeholder="Deixe vazio para gerar automaticamente..." rows={4} style={{ ...inp, resize: 'vertical' }} />
-            </F>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowNew(false)} style={{ flex: 1, background: 'transparent', border: '1px solid #e0e0ea', borderRadius: 8, color: '#6a6a7a', padding: 10, fontSize: 13 }}>Cancelar</button>
-              <button onClick={save} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#1e6b3a,#2d9e4f)', border: 'none', borderRadius: 8, color: '#1a1a2e', padding: 10, fontSize: 13 }}>
-                {saving ? 'Salvando...' : 'Criar Agente'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
