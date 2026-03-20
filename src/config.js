@@ -4,14 +4,34 @@ export const N8N_LEAD = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-lea
 export const N8N_COMPANY = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-company'
 export const N8N_SEARCH = 'https://n8n-webhook.chasocial.com.br/webhook/search-linkedin-leads'
 
-// Auth state — gerenciado pelo App.jsx
+// Auth state — reads from localStorage as source of truth
 let _session = null
-export const setSession = (s) => { _session = s }
-export const getSession = () => _session
-export const getProfileId = () => _session?.user?.id || null
-export const getAccessToken = () => _session?.access_token || SB_KEY
 
-// API Supabase — usa token do usuário logado quando disponível
+export const setSession = (s) => {
+  _session = s
+  if (s) localStorage.setItem('pa_session', JSON.stringify(s))
+}
+
+export const getSession = () => {
+  if (_session) return _session
+  try {
+    const stored = localStorage.getItem('pa_session')
+    if (stored) { _session = JSON.parse(stored); return _session }
+  } catch {}
+  return null
+}
+
+export const getProfileId = () => {
+  const s = getSession()
+  return s?.user?.id || null
+}
+
+export const getAccessToken = () => {
+  const s = getSession()
+  return s?.access_token || SB_KEY
+}
+
+// API Supabase
 export const sb = async (path, opts = {}) => {
   const token = getAccessToken()
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -24,7 +44,10 @@ export const sb = async (path, opts = {}) => {
     },
     ...opts,
   })
-  if (!r.ok) throw new Error(r.status)
+  if (!r.ok) {
+    const txt = await r.text().catch(() => r.status.toString())
+    throw new Error(`${r.status}: ${txt}`)
+  }
   return r.status === 204 ? null : r.json()
 }
 
@@ -62,11 +85,9 @@ export const NAV = [
 ]
 
 export const MOCK_LEADS = [
-  { id: 'l1', full_name: 'Ben Martin Balik', headline: 'CEO & Founder | CHA Agromkt', current_company: 'CHA Agromkt', location: 'Presidente Epitácio, SP', ai_icp_score: 95, ai_profile_summary: 'CEO e fundador da CHA Agromkt.', ai_pain_points: ['Escalabilidade', 'Diferenciação'], detected_segment: 'agencia_marketing', is_connection: false, rd_station_status: 'pending' },
-  { id: 'l2', full_name: 'Carlos Eduardo Mendonça', headline: 'Diretor de Marketing | AgroNutri', current_company: 'AgroNutri Insumos', location: 'Ribeirão Preto, SP', ai_icp_score: 88, ai_pain_points: ['CPL alto'], detected_segment: 'insumos', is_connection: true, rd_station_status: 'sent' },
+  { id: 'l1', full_name: 'Ben Martin Balik', headline: 'CEO & Founder | CHA Agromkt', current_company: 'CHA Agromkt', location: 'Presidente Epitácio, SP', ai_icp_score: 95, ai_pain_points: ['Escalabilidade'], detected_segment: 'agencia_marketing', is_connection: false, rd_station_status: 'pending' },
 ]
 
 export const MOCK_LISTS = [
   { id: 'm1', name: 'Revendas SP Interior', total_leads: 47, analyzed_leads: 32, color: '#1e6b3a' },
-  { id: 'm2', name: 'Cooperativas PR/SC', total_leads: 23, analyzed_leads: 18, color: '#f59e0b' },
 ]
