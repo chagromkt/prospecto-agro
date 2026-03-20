@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY } from '../config.js'
+import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY, N8N_CONTENT } from '../config.js'
 
 const TONES = ['Educativo','Provocativo','Inspirador','Storytelling','Comercial','Bastidores']
 const EMPTY = { title:'', content:'', tone:'Educativo', context:'', scheduled_at:'', status:'draft', media_url:'', media_type:'', media_filename:'' }
@@ -80,17 +80,19 @@ export default function Conteudo() {
     if (!form.context && !form.title) return
     setGenerating(true)
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{ 'x-api-key':'', 'anthropic-version':'2023-06-01', 'Content-Type':'application/json' },
+      const res = await fetch(N8N_CONTENT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model:'claude-sonnet-4-20250514', max_tokens:800,
-          messages:[{ role:'user', content:`Crie um post para LinkedIn sobre: "${form.context||form.title}"\n\nTom: ${form.tone}\nContexto: agronegócio brasileiro, marketing e vendas\nEspecialização: Método S.A.F.R.A.™ (CHA Agromkt)\n\nEstrutura:\n- Gancho poderoso na primeira linha (problema ou provocação)\n- 3-4 parágrafos de valor\n- CTA claro no final\n- Emojis estratégicos\n- 5 hashtags relevantes\n\nRetorne APENAS o texto do post.` }]
+          profile_id: getProfileId(),
+          topic: form.context || form.title,
+          tone: form.tone
         })
       })
       const data = await res.json()
-      setForm(p => ({...p, content: data.content?.[0]?.text || ''}))
-    } catch (e) { console.error(e) }
+      const text = data.content || data.text || data.generated_text || ''
+      if (text) setForm(p => ({...p, content: text}))
+    } catch (e) { console.error('Generate error:', e) }
     setGenerating(false)
   }
 

@@ -108,7 +108,7 @@ export default function Mensagens() {
             {loadingMsgs ? <div style={{ textAlign:'center', color:'#9a9ab0' }}>Carregando mensagens...</div>
             : messages.length === 0 ? <div style={{ textAlign:'center', color:'#c0c0d0', paddingTop:40 }}>Nenhuma mensagem registrada</div>
             : messages.map((msg, i) => {
-              const isOut = msg.direction === 'outbound'
+              const isOut = msg.direction === 'outbound' || msg.direction === 'sent'
               return (
                 <div key={msg.id||i} style={{ display:'flex', justifyContent:isOut?'flex-end':'flex-start' }}>
                   <div style={{ maxWidth:'72%' }}>
