@@ -81,6 +81,7 @@ export const NAV = [
   { id: 'campanhas',   icon: '⟳', label: 'Campanhas' },
   { id: 'agentes',     icon: '◉', label: 'Agentes' },
   { id: 'conteudo',    icon: '✦', label: 'Conteúdo' },
+  { id: 'mensagens', icon: '💬', label: 'Mensagens' },
   { id: 'comentarios', icon: '◌', label: 'Comentários' },
 ]
 

@@ -8,12 +8,13 @@ import Campanhas from './pages/Campanhas.jsx'
 import Agentes from './pages/Agentes.jsx'
 import Conteudo from './pages/Conteudo.jsx'
 import Comentarios from './pages/Comentarios.jsx'
+import Mensagens from './pages/Mensagens.jsx'
 import Login from './pages/Login.jsx'
 import { SB_URL, SB_KEY, setSession } from './config.js'
 
 const PAGES = {
   dashboard: Dashboard, busca: BuscaLinkedIn, listas: Listas, leads: Leads,
-  campanhas: Campanhas, agentes: Agentes, conteudo: Conteudo, comentarios: Comentarios
+  campanhas: Campanhas, agentes: Agentes, conteudo: Conteudo, comentarios: Comentarios, mensagens: Mensagens
 }
 
 export default function App() {
