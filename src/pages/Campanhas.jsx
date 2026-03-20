@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, getProfileId } from '../config.js'
+import { sb, getProfileId, N8N_ACTIVATE } from '../config.js'
 
 const STEP_TYPES = [
   { id: 'visit_profile',    label: 'Visitar Perfil',       icon: '👁',  color: '#3b82f6', desc: 'Visita o perfil do lead no LinkedIn' },
@@ -458,7 +458,18 @@ export default function Campanhas() {
     try {
       await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({status}) })
       setSel(p=>({...p,status})); setCampaigns(p=>p.map(c=>c.id===sel.id?{...c,status}:c))
-    } catch {}
+      // Notifica n8n para processar imediatamente após ativar
+      if (status === 'active') {
+        fetch(N8N_ACTIVATE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ campaign_id: sel.id, profile_id: getProfileId() }) }).catch(()=>{})
+        // Recarrega executions após 2s para mostrar progresso
+        setTimeout(async () => {
+          try {
+            const ex = await sb(`campaign_executions?campaign_id=eq.${sel.id}&select=id,status,current_step_id`)
+            setExecutions(ex || [])
+          } catch {}
+        }, 2000)
+      }
+    } catch (e) { console.error('toggleStatus error', e) }
   }
 
   const deleteCampaign = async () => {

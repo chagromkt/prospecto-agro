@@ -4,6 +4,7 @@ export const N8N_LEAD = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-lea
 export const N8N_COMPANY = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-company'
 export const N8N_SEARCH = 'https://n8n-webhook.chasocial.com.br/webhook/search-linkedin-leads'
 export const N8N_CONTENT = 'https://n8n-webhook.chasocial.com.br/webhook/generate-content'
+export const N8N_ACTIVATE = 'https://n8n-webhook.chasocial.com.br/webhook/activate-campaign'
 
 // Auth state — reads from localStorage as source of truth
 let _session = null
