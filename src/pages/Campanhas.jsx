@@ -253,6 +253,7 @@ export default function Campanhas() {
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
+    if (!getProfileId()) { console.warn("getProfileId() null — sessão não carregada"); return }
     try {
       const [cData, aData] = await Promise.all([
         sb(`campaigns?profile_id=eq.${getProfileId()}&order=created_at.desc`),
@@ -261,7 +262,7 @@ export default function Campanhas() {
       setCampaigns(cData || [])
       setAgents(aData || [])
       if (cData?.length) selectCampaign(cData[0])
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
   }
 
   const selectCampaign = async (c) => {
@@ -275,13 +276,14 @@ export default function Campanhas() {
   }
 
   const createCampaign = async () => {
+    if (!getProfileId()) { alert("Sessão expirada — faça login novamente"); return }
     if (!newName.trim()) return
     try {
       const data = await sb('campaigns', { method: 'POST', body: JSON.stringify({ profile_id: getProfileId(), name: newName, status: 'draft', total_steps: 0 }) })
       const nc = Array.isArray(data) ? data[0] : data
       setCampaigns(p => [nc, ...p])
       selectCampaign(nc)
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
     setShowNew(false); setNewName('')
   }
 
@@ -305,7 +307,7 @@ export default function Campanhas() {
       setSelStep(created); setSelStepIdx(idx)
       // Atualiza total_steps
       await sb(`campaigns?id=eq.${selCampaign.id}`, { method: 'PATCH', body: JSON.stringify({ total_steps: renumbered.length }) })
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
     setShowPalette(false)
   }
 
@@ -316,7 +318,7 @@ export default function Campanhas() {
       const newSteps = steps.filter((_, i) => i !== idx)
       setSteps(newSteps)
       if (selStepIdx === idx) { setSelStep(null); setSelStepIdx(null) }
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
   }
 
   const updateStep = async (updatedStep) => {
@@ -324,7 +326,7 @@ export default function Campanhas() {
     setSelStep(updatedStep)
     try {
       await sb(`campaign_steps?id=eq.${updatedStep.id}`, { method: 'PATCH', body: JSON.stringify({ config: updatedStep.config }) })
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
   }
 
   const saveFlow = async () => {
@@ -335,7 +337,7 @@ export default function Campanhas() {
       }
       await sb(`campaigns?id=eq.${selCampaign.id}`, { method: 'PATCH', body: JSON.stringify({ total_steps: steps.length }) })
       setSaved(true); setTimeout(() => setSaved(false), 2000)
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
     setSaving(false)
   }
 
@@ -344,7 +346,7 @@ export default function Campanhas() {
       await sb(`campaigns?id=eq.${selCampaign.id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
       setSelCampaign(p => ({ ...p, status }))
       setCampaigns(p => p.map(c => c.id === selCampaign.id ? { ...c, status } : c))
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
   }
 
   const deleteCampaign = async () => {
@@ -355,7 +357,7 @@ export default function Campanhas() {
       const rest = campaigns.filter(c => c.id !== selCampaign.id)
       setCampaigns(rest)
       setSelCampaign(null); setSteps([])
-    } catch {}
+    } catch (e) { console.error("Erro Campanhas:", e) }
   }
 
   const statusColors = { active: '#059669', paused: '#d97706', draft: '#9a9ab0', completed: '#3b82f6' }
