@@ -56,16 +56,26 @@ export default function Comentarios() {
     if (!form.name.trim()) return
     setSaving(true)
     try {
-      const payload = { ...form, profile_id: getProfileId() }
+      // lead_list_id e linkedin_account_id são UUID — string vazia quebra o insert
+      const payload = {
+        ...form,
+        profile_id: getProfileId(),
+        lead_list_id: form.lead_list_id || null,
+        linkedin_account_id: form.linkedin_account_id || null,
+      }
       if (mode === 'new') {
         const data = await sb('comment_campaigns', { method:'POST', body: JSON.stringify(payload) })
         setCamps(p => [Array.isArray(data)?data[0]:data, ...p])
       } else {
-        await sb(`comment_campaigns?id=eq.${sel.id}`, { method:'PATCH', body: JSON.stringify(form) })
-        setCamps(p => p.map(c => c.id===sel.id ? {...c,...form} : c))
+        const { lead_list_id, linkedin_account_id, ...patchRest } = payload
+        await sb(`comment_campaigns?id=eq.${sel.id}`, { method:'PATCH', body: JSON.stringify({ ...patchRest, lead_list_id, linkedin_account_id }) })
+        setCamps(p => p.map(c => c.id===sel.id ? {...c,...payload} : c))
       }
       setMode('list'); setSel(null)
-    } catch (e) { console.error(e) }
+    } catch (e) {
+      console.error('Erro ao salvar campanha de comentários:', e)
+      alert(`Erro ao salvar: ${e.message}`)
+    }
     setSaving(false)
   }
 
