@@ -10,12 +10,13 @@ import Conteudo from './pages/Conteudo.jsx'
 import Comentarios from './pages/Comentarios.jsx'
 import Mensagens from './pages/Mensagens.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
+import CadenciasRD from './pages/CadenciasRD.jsx'
 import Login from './pages/Login.jsx'
 import { SB_URL, SB_KEY, setSession } from './config.js'
 
 const PAGES = {
   dashboard: Dashboard, busca: BuscaLinkedIn, listas: Listas, leads: Leads,
-  campanhas: Campanhas, agentes: Agentes, conteudo: Conteudo, comentarios: Comentarios, mensagens: Mensagens, configuracoes: Configuracoes
+  campanhas: Campanhas, agentes: Agentes, conteudo: Conteudo, comentarios: Comentarios, mensagens: Mensagens, cadencias: CadenciasRD, configuracoes: Configuracoes
 }
 
 export default function App() {
