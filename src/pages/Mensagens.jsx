@@ -274,7 +274,7 @@ export default function Mensagens() {
             <div style={{ background:syncResult.success?'#f0faf4':'#fff5f5', border:`1px solid ${syncResult.success?'#b8e8c8':'#ffd0d0'}`, borderRadius:7, padding:'6px 10px', marginBottom:8, fontSize:11, color:syncResult.success?'#059669':'#dc2626' }}>
               {syncResult.success
                 ? `✅ ${syncResult.new_conversations} conversas novas · ${syncResult.new_messages} mensagens importadas`
-                : `❌ ${syncResult.error}`
+                : <span>❌ {syncResult.error || JSON.stringify(syncResult).substring(0, 200)}</span>
               }
             </div>
           )}
