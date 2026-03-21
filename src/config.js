@@ -86,6 +86,7 @@ export const NAV = [
   { id: 'conteudo',    icon: '✍️', label: 'Conteúdo' },
   { id: 'mensagens',   icon: '💬', label: 'Mensagens' },
   { id: 'comentarios', icon: '💭', label: 'Comentários' },
+  { id: 'configuracoes', icon: '⚙️', label: 'Configurações' },
 ]
 
 export const MOCK_LEADS = [
