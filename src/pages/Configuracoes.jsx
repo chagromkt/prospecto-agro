@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, getProfileId } from '../config.js'
+import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY } from '../config.js'
 
 const TIMEZONES = [
   'America/Sao_Paulo','America/Manaus','America/Belem',
@@ -86,14 +86,33 @@ export default function Configuracoes() {
     setSaving(true)
     try {
       const payload = { ...cfg, profile_id: getProfileId() }
-      if (exists) {
-        await sb(`settings?profile_id=eq.${getProfileId()}`, { method:'PATCH', body:JSON.stringify(cfg) })
-      } else {
-        await sb('settings', { method:'POST', body:JSON.stringify(payload) })
-        setExists(true)
+      // Remove campos nulos/vazios que podem causar conflito
+      Object.keys(payload).forEach(k => { if (payload[k] === '' || payload[k] === null) delete payload[k] })
+      payload.profile_id = getProfileId() // garante sempre presente
+
+      // Upsert: cria se não existe, atualiza se existe — via header Prefer
+      const token = getAccessToken()
+      const res = await fetch(`${SB_URL}/rest/v1/settings`, {
+        method: 'POST',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation,resolution=merge-duplicates',
+        },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`${res.status}: ${err}`)
       }
-      setSaved(true); setTimeout(() => setSaved(false), 2500)
-    } catch (e) { console.error(e) }
+      setExists(true)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      console.error('Settings save error:', e)
+      alert(`Erro ao salvar: ${e.message}`)
+    }
     setSaving(false)
   }
 
