@@ -228,14 +228,19 @@ Retorne APENAS o texto do post, sem explicações.`
       // Chama Edge Function para publicar
       const res = await fetch(EDGE_PUBLISH, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ post_id:postId, unipile_key:'' }) // unipile_key vem da env da edge function
+        body:JSON.stringify({ post_id: postId })
       })
       const result = await res.json()
 
       if (result.success) {
         // Atualiza lista
         setPosts(p=>p.map(x=>x.id===postId ? {...x, status:'published', published_at:new Date().toISOString()} : x))
-        setPublishResult({ ok:true, message: result.published ? '✅ Publicado no LinkedIn!' : '✅ Salvo como publicado!' })
+        setPublishResult({
+          ok: true,
+          message: result.published
+            ? '✅ Publicado no LinkedIn com sucesso!'
+            : '⚠️ Salvo como publicado no banco. Para publicar no LinkedIn, adicione sua chave Unipile em ⚙️ Configurações.'
+        })
         // Volta para lista após 2s
         setTimeout(() => { setMode('list'); setSel(null); setMediaPreview(null) }, 2000)
       } else {
@@ -459,7 +464,7 @@ Retorne APENAS o texto do post, sem explicações.`
                     <button onClick={()=>openEdit(post)} style={{ flex:1,background:'#f8f8fc',border:'1px solid #e0e0ea',borderRadius:8,color:'#6a6a7a',padding:'7px',fontSize:12,fontWeight:600 }}>✎ Editar</button>
                     {post.status!=='published' && (
                       <button onClick={async()=>{
-                        const r = await fetch(EDGE_PUBLISH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({post_id:post.id,unipile_key:''})})
+                        const r = await fetch(EDGE_PUBLISH,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ post_id: post.id })})
                         const d = await r.json()
                         if(d.success) setPosts(p=>p.map(x=>x.id===post.id?{...x,status:'published'}:x))
                       }} style={{ background:'#f0faf4',border:'1px solid #b8e8c8',borderRadius:8,color:'#1e6b3a',padding:'7px 10px',fontSize:12,fontWeight:600 }}>⚡</button>
