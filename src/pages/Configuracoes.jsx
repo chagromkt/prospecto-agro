@@ -55,6 +55,7 @@ export default function Configuracoes() {
     unipile_key:'', unipile_account_id:'',
     anthropic_key:'', openai_key:'',
     rd_station_token:'', rd_station_identifier:'',
+    gpt_model:'gpt-4o-mini',
     daily_connection_limit:30, daily_message_limit:50, daily_comment_limit:20,
     working_hours_start:8, working_hours_end:18,
     timezone:'America/Sao_Paulo'
@@ -180,10 +181,25 @@ export default function Configuracoes() {
           </Field>
         </Section>
 
+        {/* AI status banner */}
+        {(cfg.openai_key || cfg.anthropic_key) && (
+          <div style={{ background:'#f0faf4', border:'1px solid #b8e8c8', borderRadius:10, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:20 }}>{cfg.openai_key ? '🟢' : '🟡'}</span>
+            <div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#1e6b3a' }}>
+                IA ativa: {cfg.openai_key ? `OpenAI ${cfg.gpt_model||'gpt-4o-mini'}` : 'Anthropic Claude Haiku'}
+              </div>
+              <div style={{ fontSize:11, color:'#6a6a7a' }}>
+                {cfg.openai_key ? 'GPT será usado para comentários, mensagens e enriquecimento. Claude como backup.' : 'Configure a chave OpenAI para usar GPT no lugar do Claude.'}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Anthropic */}
-        <Section title="Anthropic — IA de Texto" icon="🤖">
+        <Section title="Anthropic — IA de Texto (fallback)" icon="🤖">
           <div style={{ background:'#f5f3ff', border:'1px solid #ddd6fe', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#5b21b6' }}>
-            Usada para enriquecer leads, gerar mensagens personalizadas, comentários e posts.
+            Alternativa ao GPT. Se ambas estiverem configuradas, OpenAI é usada por padrão.
           </div>
           <Field label="API Key" hint="Encontre em: console.anthropic.com → API Keys">
             <div style={{ display:'flex', gap:8 }}>
@@ -199,12 +215,19 @@ export default function Configuracoes() {
         </Section>
 
         {/* OpenAI */}
-        <Section title="OpenAI — Geração de Imagens" icon="🎨">
+        <Section title="OpenAI (GPT) — IA Principal" icon="🤖">
           <div style={{ background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#166534' }}>
-            Usada pelo W8 para gerar imagens com DALL-E 3 para os posts do LinkedIn.
+            Usada para gerar textos, comentários, mensagens e imagens (DALL-E 3). Recomendada como IA principal.
           </div>
           <Field label="API Key" hint="Encontre em: platform.openai.com → API Keys">
             <KeyInput value={cfg.openai_key||''} onChange={v=>upd('openai_key',v)} placeholder="sk-proj-xxxx..." />
+          </Field>
+          <Field label="Modelo GPT" hint="gpt-4o-mini é o mais rápido e barato para comentários e mensagens">
+            <select value={cfg.gpt_model||'gpt-4o-mini'} onChange={e=>upd('gpt_model',e.target.value)} style={inp}>
+              <option value="gpt-4o-mini">gpt-4o-mini — Rápido e econômico ✓ Recomendado</option>
+              <option value="gpt-4o">gpt-4o — Mais inteligente (mais caro)</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+            </select>
           </Field>
         </Section>
 

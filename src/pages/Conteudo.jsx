@@ -120,14 +120,60 @@ export default function Conteudo() {
     if (!form.context && !form.title) return
     setGenerating(true)
     try {
-      const res = await fetch(N8N_CONTENT, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ profile_id:getProfileId(), topic:form.context||form.title, tone:form.tone })
-      })
-      const data = await res.json()
-      const text = data.content||data.text||data.generated_text||''
-      if (text) setForm(p=>({...p, content:text}))
-    } catch(e) { console.error(e) }
+      // Busca chaves das configurações
+      const cfgData = await sb(`settings?profile_id=eq.${getProfileId()}`).catch(() => [])
+      const cfg = cfgData?.[0] || {}
+      const openaiKey = cfg.openai_key || ''
+      const anthropicKey = cfg.anthropic_key || ''
+
+      const prompt = `Você é especialista em marketing para o agronegócio brasileiro (CHA Agromkt / Método S.A.F.R.A.™).
+
+Crie um post para LinkedIn sobre: "${form.context || form.title}"
+Tom: ${form.tone}
+Contexto: agronegócio brasileiro, marketing e vendas para insumos, cooperativas e revendas
+
+Estrutura obrigatória:
+- Gancho poderoso na primeira linha (problema, provocação ou dado)
+- 3-4 parágrafos de valor real
+- CTA claro no final
+- Emojis estratégicos
+- 5 hashtags relevantes ao final
+
+Retorne APENAS o texto do post, sem explicações.`
+
+      let text = ''
+
+      if (openaiKey) {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 900, messages: [{ role: 'user', content: prompt }] })
+        })
+        const data = await res.json()
+        text = data?.choices?.[0]?.message?.content?.trim() || ''
+      }
+
+      if (!text && anthropicKey) {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 900, messages: [{ role: 'user', content: prompt }] })
+        })
+        const data = await res.json()
+        text = data?.content?.[0]?.text?.trim() || ''
+      }
+
+      if (!text) {
+        setImageError('Configure uma chave OpenAI ou Anthropic em ⚙️ Configurações para gerar textos.')
+        setTimeout(() => setImageError(''), 5000)
+      } else {
+        setForm(p => ({...p, content: text}))
+      }
+    } catch(e) {
+      console.error(e)
+      setImageError('Erro ao gerar texto. Verifique suas chaves em Configurações.')
+      setTimeout(() => setImageError(''), 5000)
+    }
     setGenerating(false)
   }
 
