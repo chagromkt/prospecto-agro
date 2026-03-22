@@ -4,6 +4,9 @@ export const PROFILE_ID = '00000000-0000-0000-0000-000000000001'
 export const N8N_LEAD = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-lead'
 export const N8N_COMPANY = 'https://n8n-webhook.chasocial.com.br/webhook/enrich-company'
 export const N8N_SEARCH = 'https://n8n-webhook.chasocial.com.br/webhook/search-linkedin-leads'
+export const N8N_RD = 'https://n8n-webhook.chasocial.com.br/webhook/push-rd-station'
+export const N8N_CONTENT = 'https://n8n-webhook.chasocial.com.br/webhook/generate-content'
+export const N8N_ACTIVATE = 'https://n8n-webhook.chasocial.com.br/webhook/activate-campaign'
 
 export const sb = async (path, opts = {}) => {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
