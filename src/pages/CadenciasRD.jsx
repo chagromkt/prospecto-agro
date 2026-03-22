@@ -604,7 +604,7 @@ export default function CadenciasRD() {
               <div style={{ display:'flex', gap:10 }}>
                 {[['Disparos', sel.total_executions||0,'#6a6a7a'],['Encontrados', sel.total_found||0,'#3b82f6'],['Enviados', sel.total_sent||0,'#059669']].map(([l,v,c]) => (
                   <div key={l} style={{ flex:1, textAlign:'center', background:'#fff', border:'1px solid #e8e8f0', borderRadius:8, padding:'8px 4px' }}>
-                    <div style={{ fontSize:18, fontWeight:900, color:c as string, fontFamily:'monospace' }}>{v as number}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:c, fontFamily:'monospace' }}>{v}</div>
                     <div style={{ fontSize:9, color:'#c0c0d0', textTransform:'uppercase' }}>{l}</div>
                   </div>
                 ))}
