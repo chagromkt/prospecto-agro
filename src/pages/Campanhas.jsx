@@ -424,6 +424,14 @@ export default function Campanhas() {
       const list = [...steps.slice(0,idx), created, ...steps.slice(idx)].map((s,i)=>({...s,step_order:i+1}))
       setSteps(list); setSelStep(created); setSelIdx(idx)
       await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:list.length}) })
+      // Salva links imediatamente após inserção
+      for (let i = 0; i < list.length; i++) {
+        const s = list[i]
+        const nextS = list[i+1] || null
+        const patch = { step_order: i+1, next_step_id: s.step_type === 'condition' ? null : (nextS?.id || null) }
+        if (s.step_type === 'condition' && nextS && !s.true_step_id) patch.true_step_id = nextS.id
+        await sb(`campaign_steps?id=eq.${s.id}`, { method:'PATCH', body:JSON.stringify(patch) })
+      }
     } catch (e) { console.error(e) }
     setShowPalette(false)
   }
@@ -447,7 +455,36 @@ export default function Campanhas() {
   const saveFlow = async () => {
     setSaving(true)
     try {
-      for (let i=0; i<steps.length; i++) await sb(`campaign_steps?id=eq.${steps[i].id}`, { method:'PATCH', body:JSON.stringify({step_order:i+1,config:steps[i].config}) })
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]
+        const nextStep = steps[i + 1] || null
+
+        // Determina next_step_id: para condition, usa true_step_id/false_step_id se estiver no config
+        // Para todos os outros, o próximo step na ordem é o next
+        let nextStepId = nextStep?.id || null
+        let trueStepId = step.true_step_id || null
+        let falseStepId = step.false_step_id || null
+
+        // Se step é condition e tem on_false=stop, false_step_id permanece null
+        // Se condition tem on_true definido no config, usa esse
+        if (step.step_type === 'condition') {
+          // next_step_id fica null para condition (navega via true/false)
+          nextStepId = null
+          // true_step_id: usa o próximo step linear como padrão se não definido explicitamente
+          if (!trueStepId && nextStep) trueStepId = nextStep.id
+        }
+
+        await sb(`campaign_steps?id=eq.${step.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            step_order: i + 1,
+            config: step.config,
+            next_step_id: nextStepId,
+            true_step_id: trueStepId,
+            false_step_id: falseStepId,
+          })
+        })
+      }
       await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:steps.length}) })
       setSaved(true); setTimeout(()=>setSaved(false),2000)
     } catch (e) { console.error(e) }
