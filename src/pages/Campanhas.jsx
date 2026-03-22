@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, getProfileId, N8N_ACTIVATE } from '../config.js'
+import { sb, getProfileId } from '../config.js'
 
 const STEP_TYPES = [
   { id: 'visit_profile',    label: 'Visitar Perfil',       icon: '👁',  color: '#3b82f6', desc: 'Visita o perfil do lead no LinkedIn' },
