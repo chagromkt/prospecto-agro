@@ -46,14 +46,17 @@ export const STEP_TYPES = [
 ]
 
 export const NAV = [
-  { id: 'dashboard',      icon: '◈', label: 'Dashboard' },
-  { id: 'busca',          icon: '🔍', label: 'Buscar Leads' },
-  { id: 'listas',         icon: '▤', label: 'Listas de Leads' },
-  { id: 'leads',          icon: '◎', label: 'Leads' },
-  { id: 'campanhas',      icon: '⟳', label: 'Campanhas' },
-  { id: 'agentes',        icon: '◉', label: 'Agentes' },
-  { id: 'conteudo',       icon: '✦', label: 'Conteúdo' },
-  { id: 'comentarios',    icon: '◌', label: 'Comentários' },
+  { id: 'dashboard',   icon: '📊', label: 'Dashboard' },
+  { id: 'busca',       icon: '🔍', label: 'Buscar Leads' },
+  { id: 'listas',      icon: '📋', label: 'Listas de Leads' },
+  { id: 'leads',       icon: '👥', label: 'Leads' },
+  { id: 'campanhas',   icon: '🚀', label: 'Campanhas' },
+  { id: 'agentes',     icon: '🤖', label: 'Agentes' },
+  { id: 'conteudo',    icon: '✍️', label: 'Conteúdo' },
+  { id: 'mensagens',   icon: '💬', label: 'Mensagens' },
+  { id: 'comentarios', icon: '💭', label: 'Comentários' },
+  { id: 'cadencias',   icon: '🔗', label: 'Cadências RD' },
+  { id: 'configuracoes', icon: '⚙️', label: 'Configurações' },
 ]
 
 export const MOCK_LEADS = [
