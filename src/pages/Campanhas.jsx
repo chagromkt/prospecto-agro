@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sb, getProfileId } from '../config.js'
+import { sb, getProfileId, SB_URL } from '../config.js'
 
 const STEP_TYPES = [
   { id: 'visit_profile',    label: 'Visitar Perfil',       icon: '👁',  color: '#3b82f6', desc: 'Visita o perfil do lead no LinkedIn' },
@@ -13,6 +13,7 @@ const STEP_TYPES = [
   { id: 'wait_time',        label: 'Aguardar Tempo',       icon: '⏱',  color: '#6b7280', desc: 'Aguarda X dias antes do próximo passo' },
   { id: 'wait_reply',       label: 'Aguardar Resposta',    icon: '💭', color: '#7c3aed', desc: 'Aguarda resposta do lead no chat' },
   { id: 'condition',        label: 'Condição (IF)',         icon: '⬡',  color: '#0ea5e9', desc: 'Divide o fluxo em dois caminhos' },
+  { id: 'webhook_trigger',  label: 'Webhook RD Station',   icon: '🔌', color: '#059669', desc: 'Entra leads via webhook do RD Station' },
 ]
 const typeMap = Object.fromEntries(STEP_TYPES.map(s => [s.id, s]))
 
@@ -91,6 +92,82 @@ const FlowNode = ({ step, index, selected, leadsCount, onClick, onDelete }) => {
 }
 
 // ─── Step Config ──────────────────────────────────────────────────────────────
+const EDGE_BASE = 'https://juabbkewrtbignqrufgp.supabase.co/functions/v1'
+
+function WebhookStepConfig({ step, campaignId }) {
+  const [copied, setCopied] = useState(false)
+  const [copiedPayload, setCopiedPayload] = useState(false)
+
+  const webhookUrl = `${EDGE_BASE}/campaign-webhook/${campaignId}`
+
+  const payload = `{
+  "nome": "{{contact.name}}",
+  "empresa": "{{contact.company}}",
+  "cargo": "{{contact.job_title}}",
+  "cidade": "{{contact.city}}",
+  "email": "{{contact.email}}",
+  "telefone": "{{contact.mobile_phone}}",
+  "etapa": "{{deal.stage_name}}"
+}`
+
+  const copy = (text, setter) => {
+    navigator.clipboard.writeText(text)
+    setter(true); setTimeout(() => setter(false), 2000)
+  }
+
+  const btnStyle = (active) => ({
+    background: active ? '#f0faf4' : '#f8f8fc',
+    border: `1px solid ${active ? '#b8e8c8' : '#e0e0ea'}`,
+    borderRadius: 7, color: active ? '#059669' : '#6a6a7a',
+    padding: '5px 12px', fontSize: 11, cursor: 'pointer', flexShrink: 0
+  })
+
+  return (
+    <div>
+      <div style={{ background: '#f0faf4', border: '1px solid #b8e8c8', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#059669', textTransform: 'uppercase', marginBottom: 6 }}>
+          Como funciona
+        </div>
+        <div style={{ fontSize: 12, color: '#4a4a5a', lineHeight: 1.7 }}>
+          Quando o RD Station disparar este webhook, o lead será localizado no LinkedIn e adicionado automaticamente a esta campanha.
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: '#9a9ab0', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+        URL do Webhook
+      </div>
+      <div style={{ background: '#1a1a2e', borderRadius: 9, padding: '10px 12px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <code style={{ flex: 1, fontSize: 11, color: '#a8ffa8', wordBreak: 'break-all', lineHeight: 1.5 }}>
+            {webhookUrl}
+          </code>
+          <button onClick={() => copy(webhookUrl, setCopied)} style={btnStyle(copied)}>
+            {copied ? '✓' : '📋'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: '#9a9ab0', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+        Payload JSON — cole no RD Station
+      </div>
+      <div style={{ background: '#f8f8fc', border: '1px solid #e8e8f0', borderRadius: 9, padding: '10px 12px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+          <button onClick={() => copy(payload, setCopiedPayload)} style={btnStyle(copiedPayload)}>
+            {copiedPayload ? '✓ Copiado' : '📋 Copiar'}
+          </button>
+        </div>
+        <pre style={{ fontSize: 11, color: '#4a4a5a', margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+          {payload}
+        </pre>
+      </div>
+
+      <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 9, padding: 10, fontSize: 11, color: '#92400e', lineHeight: 1.6 }}>
+        <strong>No RD Station:</strong> Automações → Ação "Enviar Webhook" → cole a URL acima → configure o Payload JSON com as variáveis do contato.
+      </div>
+    </div>
+  )
+}
+
 const StepConfig = ({ step, onUpdate, agents }) => {
   const t = typeMap[step.step_type] || {}
   const cfg = step.config || {}
@@ -241,6 +318,10 @@ const StepConfig = ({ step, onUpdate, agents }) => {
         <div style={{ background:'#f8f8fc', borderRadius:10, padding:14, fontSize:13, color:'#6a6a7a', lineHeight:1.7 }}>
           <strong style={{ color:'#1a1a2e' }}>Ação automática</strong><br/>Executada via Unipile. Sem configuração necessária.
         </div>
+      )}
+
+      {step.step_type === 'webhook_trigger' && (
+        <WebhookStepConfig step={step} campaignId={step.campaign_id} />
       )}
     </div>
   )

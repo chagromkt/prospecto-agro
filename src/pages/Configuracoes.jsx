@@ -251,11 +251,8 @@ export default function Configuracoes() {
         </Section>
 
         {/* RD Station */}
-        <Section title="RD Station Marketing" icon="📊">
-          <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#c2410c' }}>
-            Usado pelo W6 para enviar leads qualificados ao RD Station com ICP Score e dores mapeadas.
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <Section title="RD Station — Integração" icon="🔗">
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
             <Field label="Token de acesso" hint="RD Station → Integrações → API → Token">
               <KeyInput value={cfg.rd_station_token||''} onChange={v=>upd('rd_station_token',v)} placeholder="seu-token-rd..." />
             </Field>
@@ -264,6 +261,45 @@ export default function Configuracoes() {
                 placeholder="ben@chasocial.com.br" style={inp} />
             </Field>
           </div>
+
+          {/* Como configurar no RD */}
+          <div style={{ background:'#f0faf4', border:'1px solid #b8e8c8', borderRadius:10, padding:14, marginBottom:16 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#1e6b3a', marginBottom:10 }}>
+              🔌 Como conectar o RD Station às campanhas
+            </div>
+            <div style={{ fontSize:12, color:'#4a4a5a', lineHeight:1.8 }}>
+              <div><strong>1.</strong> No flow builder de uma campanha, adicione o step <strong>"Webhook RD Station"</strong></div>
+              <div><strong>2.</strong> Copie a URL gerada automaticamente para aquela campanha</div>
+              <div><strong>3.</strong> No RD Station → <strong>Automações → Ação "Enviar Webhook"</strong></div>
+              <div><strong>4.</strong> Cole a URL e configure o payload JSON com as variáveis do contato</div>
+              <div><strong>5.</strong> Quando um lead mudar de etapa, ele é localizado no LinkedIn e entra na campanha automaticamente</div>
+            </div>
+          </div>
+
+          {/* Payload de referência */}
+          <Field label="Payload JSON de referência — use no RD Station">
+            <div style={{ background:'#1a1a2e', borderRadius:8, padding:12, position:'relative' }}>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('{\n  "nome": "{{contact.name}}",\n  "empresa": "{{contact.company}}",\n  "cargo": "{{contact.job_title}}",\n  "cidade": "{{contact.city}}",\n  "email": "{{contact.email}}",\n  "telefone": "{{contact.mobile_phone}}",\n  "etapa": "{{deal.stage_name}}"\n}')
+                  const btn = document.getElementById('copy-rd-payload')
+                  if (btn) { btn.textContent = '✓ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar' }, 2000) }
+                }}
+                id="copy-rd-payload"
+                style={{ position:'absolute', top:8, right:8, background:'#f0faf4', border:'1px solid #b8e8c8', borderRadius:6, color:'#059669', padding:'3px 10px', fontSize:11, cursor:'pointer' }}>
+                📋 Copiar
+              </button>
+              <pre style={{ fontSize:11, color:'#a8ffa8', margin:0, lineHeight:1.7 }}>{`{
+  "nome": "{{contact.name}}",
+  "empresa": "{{contact.company}}",
+  "cargo": "{{contact.job_title}}",
+  "cidade": "{{contact.city}}",
+  "email": "{{contact.email}}",
+  "telefone": "{{contact.mobile_phone}}",
+  "etapa": "{{deal.stage_name}}"
+}`}</pre>
+            </div>
+          </Field>
         </Section>
 
         {/* Limites diários */}
