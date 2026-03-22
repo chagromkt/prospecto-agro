@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY, N8N_LEAD, N8N_RD, SEG, ICP, COLORS } from '../config.js'
+import ImportModal from './ImportModal.jsx'
 
 const EDGE_ENRICH = 'https://juabbkewrtbignqrufgp.supabase.co/functions/v1/enrich-list'
 
@@ -23,6 +24,7 @@ export default function Listas() {
   const [sel, setSel] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editList, setEditList] = useState(null)
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState('#1e6b3a')
@@ -255,8 +257,12 @@ export default function Listas() {
       <div style={{ width:220, background:T.bgSub, borderRight:`1px solid ${T.border}`, display:'flex', flexDirection:'column', flexShrink:0 }}>
         <div style={{ padding:'14px 12px 10px', borderBottom:`1px solid ${T.border}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <span style={{ fontSize:13, fontWeight:700, color:T.text }}>Listas</span>
-          <button onClick={() => { setShowNew(true); setEditList(null); setNewName(''); setNewColor('#1e6b3a') }}
-            style={{ background:T.accent, border:'none', borderRadius:6, color:'#fff', padding:'4px 12px', fontSize:12, fontWeight:600 }}>+ Nova</button>
+          <div style={{ display:'flex', gap:5 }}>
+            <button onClick={() => setShowImport(true)}
+              style={{ background:'#f0f0f5', border:'none', borderRadius:6, color:'#6a6a7a', padding:'4px 10px', fontSize:11, fontWeight:600 }}>📥</button>
+            <button onClick={() => { setShowNew(true); setEditList(null); setNewName(''); setNewColor('#1e6b3a') }}
+              style={{ background:T.accent, border:'none', borderRadius:6, color:'#fff', padding:'4px 12px', fontSize:12, fontWeight:600 }}>+ Nova</button>
+          </div>
         </div>
 
         {showNew && (
@@ -669,6 +675,16 @@ export default function Listas() {
       )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
+
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImported={(newList) => {
+            setShowImport(false)
+            load() // Recarrega as listas para mostrar a nova
+          }}
+        />
+      )}
     </div>
   )
 }
