@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY, N8N_LEAD, N8N_RD, SEG, ICP, COLORS } from '../config.js'
+import { sb, getProfileId, getAccessToken, SB_URL, SB_KEY, N8N_LEAD, SEG, ICP, COLORS } from '../config.js'
 
 
 const EDGE_ENRICH = 'https://juabbkewrtbignqrufgp.supabase.co/functions/v1/enrich-list'
