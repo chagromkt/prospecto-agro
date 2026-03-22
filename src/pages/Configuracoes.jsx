@@ -120,10 +120,14 @@ export default function Configuracoes() {
     if (!cfg.unipile_key) return
     setTestStatus(s => ({...s, unipile:'testing'}))
     try {
-      const r = await fetch(`https://api35.unipile.com:16513/api/v1/accounts`, {
-        headers:{ 'X-API-KEY': cfg.unipile_key, 'Content-Type':'application/json' }
+      // Chama via Edge Function para evitar CORS block no browser
+      const r = await fetch(`https://juabbkewrtbignqrufgp.supabase.co/functions/v1/test-unipile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: cfg.unipile_key, account_id: cfg.unipile_account_id })
       })
-      setTestStatus(s => ({...s, unipile: r.ok ? 'ok' : 'error'}))
+      const d = await r.json().catch(() => ({}))
+      setTestStatus(s => ({...s, unipile: d.ok ? 'ok' : 'error'}))
     } catch { setTestStatus(s => ({...s, unipile:'error'})) }
   }
 
