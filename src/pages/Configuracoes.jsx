@@ -52,7 +52,7 @@ const KeyInput = ({ value, onChange, placeholder, testStatus }) => {
 
 export default function Configuracoes() {
   const [cfg, setCfg] = useState({
-    unipile_key:'', unipile_account_id:'',
+    unipile_key:'', unipile_account_id:'', unipile_dsn:'',
     anthropic_key:'', openai_key:'',
     rd_station_token:'', rd_station_identifier:'',
     gpt_model:'gpt-4o-mini',
@@ -185,23 +185,38 @@ export default function Configuracoes() {
         {/* Unipile */}
         <Section title="Unipile — LinkedIn Integration" icon="🔗">
           <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#1d4ed8' }}>
-            A chave Unipile é usada para visitar perfis, enviar conexões, mensagens, curtir e comentar posts automaticamente.
+            Configure suas credenciais do Unipile. Cada conta tem uma URL DSN única fornecida no painel do Unipile.
           </div>
+
+          <Field label="DSN (URL da API)" hint="Encontre em: Unipile Dashboard → Configurações. Ex: api33.unipile.com:16348">
+            <input value={cfg.unipile_dsn||''} onChange={e=>upd('unipile_dsn',e.target.value)}
+              placeholder="api33.unipile.com:16348" style={inp} />
+          </Field>
+
           <Field label="API Key" hint="Encontre em: Unipile Dashboard → API Keys">
             <div style={{ display:'flex', gap:8 }}>
               <div style={{ flex:1 }}>
-                <KeyInput value={cfg.unipile_key||''} onChange={v=>upd('unipile_key',v)} placeholder="uni_live_xxxx..." testStatus={testStatus.unipile} />
+                <KeyInput value={cfg.unipile_key||''} onChange={v=>upd('unipile_key',v)} placeholder="XXXX.XXXXXXXXXXXXXXXXX=" testStatus={testStatus.unipile} />
               </div>
-              <button onClick={testUnipile} disabled={!cfg.unipile_key||testStatus.unipile==='testing'}
+              <button onClick={testUnipile} disabled={!cfg.unipile_key||!cfg.unipile_dsn||testStatus.unipile==='testing'}
                 style={{ background:'#f8f8fc', border:'1px solid #e0e0ea', borderRadius:8, color:'#6a6a7a', padding:'9px 14px', fontSize:12, flexShrink:0 }}>
-                Testar
+                {testStatus.unipile==='testing' ? '...' : testStatus.unipile==='ok' ? '✅' : testStatus.unipile==='error' ? '❌' : 'Testar'}
               </button>
             </div>
           </Field>
+
           <Field label="Account ID (LinkedIn)" hint="ID da conta LinkedIn conectada no Unipile">
             <input value={cfg.unipile_account_id||''} onChange={e=>upd('unipile_account_id',e.target.value)}
               placeholder="vkBWhZzXRem_6xPe1kppKg" style={inp} />
           </Field>
+
+          <div style={{ background:'#f8f8fc', border:'1px solid #e8e8f0', borderRadius:8, padding:'10px 14px', fontSize:11, color:'#6a6a7a', lineHeight:1.8 }}>
+            <strong style={{ color:'#1a1a2e' }}>Como encontrar seus dados:</strong><br/>
+            1. Acessa <strong>app.unipile.com</strong> → sua conta<br/>
+            2. <strong>DSN</strong>: mostrado em "API Access" (ex: api33.unipile.com:16348)<br/>
+            3. <strong>API Key</strong>: em "API Keys" → cria ou copia a chave<br/>
+            4. <strong>Account ID</strong>: em "Connected Accounts" → clica na conta LinkedIn
+          </div>
         </Section>
 
         {/* AI status banner */}
