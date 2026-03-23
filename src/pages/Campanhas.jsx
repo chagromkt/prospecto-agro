@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import * as React from 'react'
 import { sb, getProfileId, SB_URL } from '../config.js'
 
 const STEP_TYPES = [
@@ -14,6 +15,7 @@ const STEP_TYPES = [
   { id: 'wait_reply',       label: 'Aguardar Resposta',    icon: '💭', color: '#7c3aed', desc: 'Aguarda resposta do lead no chat' },
   { id: 'condition',        label: 'Condição (IF)',         icon: '⬡',  color: '#0ea5e9', desc: 'Divide o fluxo em dois caminhos' },
   { id: 'webhook_trigger',  label: 'Webhook RD Station',   icon: '🔌', color: '#059669', desc: 'Entra leads via webhook do RD Station' },
+  { id: 'send_whatsapp',   label: 'Enviar WhatsApp',       icon: '💚', color: '#25D366', desc: 'Envia mensagem, imagem, vídeo ou áudio via WhatsApp' },
 ]
 const typeMap = Object.fromEntries(STEP_TYPES.map(s => [s.id, s]))
 
@@ -92,6 +94,149 @@ const FlowNode = ({ step, index, selected, leadsCount, onClick, onDelete }) => {
 }
 
 // ─── Step Config ──────────────────────────────────────────────────────────────
+// ── Editor de texto WhatsApp ─────────────────────────────────────────────────
+function WhatsAppEditor({ value, onChange, placeholder = 'Escreva sua mensagem...' }) {
+  const ref = React.useRef()
+  const vars = ['{nome}', '{primeiro_nome}', '{empresa}', '{cargo}', '{cidade}', '{telefone}']
+  const emojis = ['👋','🌱','🚜','🌾','🐄','📈','✅','💡','🤝','📞','🔔','⭐']
+
+  const wrap = (before, after) => {
+    const el = ref.current
+    if (!el) return
+    const s = el.selectionStart, e = el.selectionEnd
+    const sel = value.slice(s, e) || 'texto'
+    const newVal = value.slice(0, s) + before + sel + after + value.slice(e)
+    onChange(newVal)
+    setTimeout(() => {
+      el.focus()
+      el.setSelectionRange(s + before.length, s + before.length + sel.length)
+    }, 10)
+  }
+
+  const insert = (text) => {
+    const el = ref.current
+    if (!el) return
+    const s = el.selectionStart
+    const newVal = value.slice(0, s) + text + value.slice(s)
+    onChange(newVal)
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + text.length, s + text.length) }, 10)
+  }
+
+  const btnStyle = { background: '#f0f0f5', border: '1px solid #e0e0ea', borderRadius: 5, padding: '3px 8px', fontSize: 12, cursor: 'pointer', color: '#1a1a2e', fontWeight: 600 }
+
+  return (
+    <div>
+      {/* Barra de formatação */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6, padding: '6px 8px', background: '#f8f8fc', borderRadius: '8px 8px 0 0', border: '1px solid #e0e0ea', borderBottom: 'none' }}>
+        <button type="button" onClick={() => wrap('*', '*')} style={btnStyle} title="Negrito">𝐁</button>
+        <button type="button" onClick={() => wrap('_', '_')} style={btnStyle} title="Itálico">𝐼</button>
+        <button type="button" onClick={() => wrap('~', '~')} style={btnStyle} title="Tachado">S̶</button>
+        <button type="button" onClick={() => wrap('```', '```')} style={btnStyle} title="Monoespaçado">⌨</button>
+        <div style={{ width: 1, background: '#e0e0ea', margin: '0 4px' }} />
+        {vars.map(v => (
+          <button key={v} type="button" onClick={() => insert(v)}
+            style={{ ...btnStyle, background: '#f0faf4', borderColor: '#b8e8c8', color: '#1e6b3a', fontSize: 11 }}>
+            {v}
+          </button>
+        ))}
+        <div style={{ width: 1, background: '#e0e0ea', margin: '0 4px' }} />
+        {emojis.map(e => (
+          <button key={e} type="button" onClick={() => insert(e)}
+            style={{ ...btnStyle, background: '#fff', fontSize: 14, padding: '2px 5px' }}>
+            {e}
+          </button>
+        ))}
+      </div>
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={ev => onChange(ev.target.value)}
+        placeholder={placeholder}
+        rows={5}
+        style={{ width: '100%', background: '#fff', border: '1px solid #e0e0ea', borderRadius: '0 0 8px 8px', padding: '9px 12px', color: '#1a1a2e', fontSize: 13, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace' }}
+      />
+      <div style={{ fontSize: 10, color: '#b0b0c0', marginTop: 3 }}>
+        *negrito* _itálico_ ~tachado~ ```mono``` • {value.length} chars
+      </div>
+    </div>
+  )
+}
+
+// ── Step Config WhatsApp ──────────────────────────────────────────────────────
+function WhatsAppStepConfig({ step, onUpdate }) {
+  const cfg = step.config || {}
+  const upd = (k, v) => onUpdate({ ...step, config: { ...cfg, [k]: v } })
+  const inp = { width: '100%', background: '#f8f8fc', border: '1px solid #e0e0ea', borderRadius: 8, padding: '9px 12px', color: '#1a1a2e', fontSize: 13, boxSizing: 'border-box' }
+  const lbl = t => <div style={{ fontSize: 11, color: '#9a9ab0', textTransform: 'uppercase', fontWeight: 700, marginBottom: 5 }}>{t}</div>
+
+  const mediaTypes = [
+    { id: '', label: '💬 Só texto' },
+    { id: 'image', label: '🖼️ Imagem' },
+    { id: 'video', label: '🎥 Vídeo' },
+    { id: 'audio', label: '🎤 Áudio (PTT)' },
+    { id: 'document', label: '📄 Documento' },
+  ]
+
+  return (
+    <div>
+      {/* Tipo de mídia */}
+      {lbl('Tipo de envio')}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+        {mediaTypes.map(m => (
+          <button key={m.id} type="button" onClick={() => upd('media_type', m.id)}
+            style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${(cfg.media_type||'') === m.id ? '#25D366' : '#e0e0ea'}`, background: (cfg.media_type||'') === m.id ? '#f0fff4' : '#fff', color: (cfg.media_type||'') === m.id ? '#128C7E' : '#6a6a7a', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {/* URL da mídia */}
+      {cfg.media_type && cfg.media_type !== '' && (
+        <>
+          {lbl(`URL da ${cfg.media_type === 'image' ? 'Imagem' : cfg.media_type === 'video' ? 'Vídeo' : cfg.media_type === 'audio' ? 'Áudio' : 'Documento'}`)}
+          <input value={cfg.media_url || ''} onChange={e => upd('media_url', e.target.value)}
+            placeholder="https://... (link público acessível)"
+            style={{ ...inp, marginBottom: 12 }} />
+        </>
+      )}
+
+      {/* Mensagem / legenda */}
+      {lbl(cfg.media_type === 'audio' ? 'Mensagem de texto (enviada antes do áudio)' : cfg.media_type ? 'Legenda (opcional)' : 'Mensagem')}
+      <WhatsAppEditor
+        value={cfg.message || ''}
+        onChange={v => upd('message', v)}
+        placeholder={cfg.media_type === 'audio' ? 'Mensagem enviada antes do áudio...' : cfg.media_type ? 'Legenda da mídia...' : 'Olá {primeiro_nome}! Tudo bem?'}
+      />
+
+      {/* Preview WhatsApp */}
+      {(cfg.message || cfg.media_url) && (
+        <div style={{ marginTop: 12, background: '#dcf8c6', borderRadius: 10, padding: '10px 14px', maxWidth: 280, marginLeft: 'auto', fontSize: 13, color: '#1a1a2e', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 9, color: '#128C7E', fontWeight: 700, marginBottom: 4 }}>PREVIEW</div>
+          {cfg.media_url && (
+            <div style={{ background: '#b8e8c0', borderRadius: 6, padding: '6px 10px', marginBottom: 6, fontSize: 11, color: '#128C7E' }}>
+              {cfg.media_type === 'image' ? '🖼️' : cfg.media_type === 'video' ? '🎥' : cfg.media_type === 'audio' ? '🎤' : '📄'} {cfg.media_type} anexado
+            </div>
+          )}
+          {cfg.message && (
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {cfg.message
+                .replace(/\*([^*]+)\*/g, '**$1**')
+                .replace(/_([^_]+)_/g, '_$1_')
+                .replace(/~([^~]+)~/g, '~~$1~~')}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: '#6a6a7a', textAlign: 'right', marginTop: 4 }}>✓✓ agora</div>
+        </div>
+      )}
+
+      {/* Info */}
+      <div style={{ background: '#f0fff4', border: '1px solid #b8e8c8', borderRadius: 8, padding: '10px 12px', marginTop: 12, fontSize: 11, color: '#4a4a5a', lineHeight: 1.7 }}>
+        <strong style={{ color: '#128C7E' }}>Requisitos:</strong> Configure a Evolution API em <strong>Configurações → WhatsApp</strong>. O lead precisa ter telefone cadastrado no campo <code>phone</code>.
+      </div>
+    </div>
+  )
+}
+
 const EDGE_BASE = 'https://juabbkewrtbignqrufgp.supabase.co/functions/v1'
 
 function WebhookStepConfig({ step, campaignId }) {
@@ -322,6 +467,10 @@ const StepConfig = ({ step, onUpdate, agents }) => {
 
       {step.step_type === 'webhook_trigger' && (
         <WebhookStepConfig step={step} campaignId={step.campaign_id} />
+      )}
+
+      {step.step_type === 'send_whatsapp' && (
+        <WhatsAppStepConfig step={step} onUpdate={onUpdate} />
       )}
     </div>
   )

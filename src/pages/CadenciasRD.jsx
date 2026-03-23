@@ -10,6 +10,7 @@ const CADENCE_STEP_TYPES = [
   { id: 'send_connection',  label: 'Pedir Conexão',     icon: '🤝', color: '#10b981', desc: 'Envia pedido de conexão com nota personalizada' },
   { id: 'send_message',     label: 'Enviar Mensagem',   icon: '💬', color: '#ec4899', desc: 'Mensagem direta LinkedIn (precisa ser 1º grau)' },
   { id: 'send_inmail',      label: 'InMail',            icon: '📨', color: '#f97316', desc: 'Mensagem paga para qualquer perfil' },
+  { id: 'send_whatsapp',    label: 'Enviar WhatsApp',   icon: '💚', color: '#25D366', desc: 'Envia mensagem, imagem, vídeo ou áudio via WhatsApp' },
   { id: 'wait',             label: 'Aguardar',          icon: '⏳', color: '#f59e0b', desc: 'Espera N dias antes de continuar' },
   { id: 'wait_connection',  label: 'Aguardar Conexão',  icon: '⏱',  color: '#d97706', desc: 'Aguarda o lead aceitar a conexão (recheck por hora)' },
   { id: 'wait_reply',       label: 'Aguardar Resposta', icon: '💭', color: '#0ea5e9', desc: 'Aguarda resposta antes de continuar' },
@@ -154,6 +155,65 @@ function StepConfig({ step, onUpdate }) {
         <div style={{ fontSize:11, color:'#9a9ab0' }}>Variáveis: {VARS_HINT}</div>
         <div style={{ fontSize:11, color:'#9a9ab0', marginTop:6 }}>
           Deixe vazio → IA gera mensagem personalizada automaticamente.
+        </div>
+      </>)}
+
+      {step.step_type === 'send_whatsapp' && (<>
+        {lbl('Tipo de envio')}
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+          {[{id:'',l:'💬 Só texto'},{id:'image',l:'🖼️ Imagem'},{id:'video',l:'🎥 Vídeo'},{id:'audio',l:'🎤 Áudio PTT'},{id:'document',l:'📄 Documento'}].map(m => (
+            <button key={m.id} type="button" onClick={() => set('media_type', m.id)}
+              style={{ padding:'6px 12px', borderRadius:8, border:`1px solid ${(cfg.media_type||'')=== m.id?'#25D366':'#e0e0ea'}`, background:(cfg.media_type||'')=== m.id?'#f0fff4':'#fff', color:(cfg.media_type||'')=== m.id?'#128C7E':'#6a6a7a', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              {m.l}
+            </button>
+          ))}
+        </div>
+        {cfg.media_type && (<>
+          {lbl('URL da mídia (link público)')}
+          <input value={cfg.media_url||''} onChange={e => set('media_url', e.target.value)}
+            placeholder="https://..." style={{ ...inp, marginBottom:12 }} />
+        </>)}
+        {lbl(cfg.media_type === 'audio' ? 'Mensagem (enviada antes do áudio)' : cfg.media_type ? 'Legenda (opcional)' : 'Mensagem')}
+        {/* Editor WhatsApp inline */}
+        <div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:0, padding:'6px 8px', background:'#f8f8fc', borderRadius:'8px 8px 0 0', border:'1px solid #e0e0ea', borderBottom:'none' }}>
+            {[['*','*','𝐁','Negrito'],['_','_','𝐼','Itálico'],['~','~','S̶','Tachado'],['```','```','⌨','Mono']].map(([b,a,icon,title]) => (
+              <button key={title} type="button" title={title}
+                onClick={() => {
+                  const ta = document.getElementById(`wa-ta-${step.id}`)
+                  if (!ta) return
+                  const s = ta.selectionStart, e = ta.selectionEnd
+                  const sel = (cfg.message||'').slice(s,e)||'texto'
+                  const newVal = (cfg.message||'').slice(0,s)+b+sel+a+(cfg.message||'').slice(e)
+                  set('message', newVal)
+                }}
+                style={{ background:'#f0f0f5', border:'1px solid #e0e0ea', borderRadius:5, padding:'3px 8px', fontSize:12, cursor:'pointer', fontWeight:600 }}>
+                {icon}
+              </button>
+            ))}
+            <div style={{ width:1, background:'#e0e0ea', margin:'0 3px' }} />
+            {['{nome}','{primeiro_nome}','{empresa}','{cargo}','{cidade}','{etapa}'].map(v => (
+              <button key={v} type="button" onClick={() => set('message', (cfg.message||'')+v)}
+                style={{ background:'#f0faf4', border:'1px solid #b8e8c8', borderRadius:5, color:'#1e6b3a', padding:'3px 8px', fontSize:10, cursor:'pointer' }}>
+                {v}
+              </button>
+            ))}
+            <div style={{ width:1, background:'#e0e0ea', margin:'0 3px' }} />
+            {['👋','🌱','🚜','✅','🤝','📞'].map(e => (
+              <button key={e} type="button" onClick={() => set('message', (cfg.message||'')+e)}
+                style={{ background:'#fff', border:'1px solid #e0e0ea', borderRadius:5, padding:'2px 5px', fontSize:13, cursor:'pointer' }}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <textarea id={`wa-ta-${step.id}`}
+            value={cfg.message||''} onChange={e => set('message', e.target.value)}
+            rows={5} placeholder="Olá {primeiro_nome}! Vi seu perfil e queria conversar..."
+            style={{ ...inp, borderRadius:'0 0 8px 8px', resize:'vertical', fontFamily:'monospace', marginBottom:4 }} />
+          <div style={{ fontSize:10, color:'#b0b0c0' }}>*negrito* _itálico_ ~tachado~ `{`\`\`mono\`\`\``}</div>
+        </div>
+        <div style={{ background:'#f0fff4', border:'1px solid #b8e8c8', borderRadius:8, padding:'8px 12px', marginTop:8, fontSize:11, color:'#128C7E' }}>
+          💚 Requer Evolution API configurada em Configurações → WhatsApp. Lead precisa ter telefone cadastrado.
         </div>
       </>)}
 
@@ -604,7 +664,7 @@ export default function CadenciasRD() {
               <div style={{ display:'flex', gap:10 }}>
                 {[['Disparos', sel.total_executions||0,'#6a6a7a'],['Encontrados', sel.total_found||0,'#3b82f6'],['Enviados', sel.total_sent||0,'#059669']].map(([l,v,c]) => (
                   <div key={l} style={{ flex:1, textAlign:'center', background:'#fff', border:'1px solid #e8e8f0', borderRadius:8, padding:'8px 4px' }}>
-                   <div style={{ fontSize:18, fontWeight:900, color:c, fontFamily:'monospace' }}>{v}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:c, fontFamily:'monospace' }}>{v}</div>
                     <div style={{ fontSize:9, color:'#c0c0d0', textTransform:'uppercase' }}>{l}</div>
                   </div>
                 ))}

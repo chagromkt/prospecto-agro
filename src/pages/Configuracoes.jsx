@@ -53,6 +53,7 @@ const KeyInput = ({ value, onChange, placeholder, testStatus }) => {
 export default function Configuracoes() {
   const [cfg, setCfg] = useState({
     unipile_key:'', unipile_account_id:'', unipile_dsn:'',
+    evolution_api_url:'', evolution_api_key:'', evolution_instance:'',
     anthropic_key:'', openai_key:'',
     rd_station_token:'', rd_station_identifier:'',
     gpt_model:'gpt-4o-mini',
@@ -319,6 +320,60 @@ export default function Configuracoes() {
 }`}</pre>
             </div>
           </Field>
+        </Section>
+
+        {/* Evolution API — WhatsApp */}
+        <Section title="WhatsApp — Evolution API" icon="💚">
+          <div style={{ background:'#f0fff4', border:'1px solid #b8e8c8', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#128C7E' }}>
+            Integre com a Evolution API para enviar mensagens, imagens, vídeos e áudios via WhatsApp nas campanhas e cadências.
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <Field label="URL da API" hint="Ex: https://evo.suaempresa.com.br">
+                <input value={cfg.evolution_api_url||''} onChange={e=>upd('evolution_api_url',e.target.value)}
+                  placeholder="https://evolution.suaempresa.com.br" style={inp} />
+              </Field>
+            </div>
+            <Field label="API Key (Global)" hint="Chave global da Evolution API">
+              <KeyInput value={cfg.evolution_api_key||''} onChange={v=>upd('evolution_api_key',v)} placeholder="sua-api-key..." />
+            </Field>
+            <Field label="Nome da Instância" hint="Nome da instância WhatsApp conectada">
+              <input value={cfg.evolution_instance||''} onChange={e=>upd('evolution_instance',e.target.value)}
+                placeholder="minha-instancia" style={inp} />
+            </Field>
+          </div>
+
+          {/* Botão de teste */}
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            <button
+              onClick={async () => {
+                if (!cfg.evolution_api_url || !cfg.evolution_api_key || !cfg.evolution_instance) return
+                setTestStatus(s => ({...s, evolution:'testing'}))
+                try {
+                  const r = await fetch(`https://juabbkewrtbignqrufgp.supabase.co/functions/v1/test-evolution`, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ url: cfg.evolution_api_url, key: cfg.evolution_api_key, instance: cfg.evolution_instance })
+                  })
+                  const d = await r.json().catch(() => ({}))
+                  setTestStatus(s => ({...s, evolution: d.ok ? 'ok' : 'error'}))
+                } catch { setTestStatus(s => ({...s, evolution:'error'})) }
+              }}
+              disabled={!cfg.evolution_api_url||!cfg.evolution_api_key||!cfg.evolution_instance||testStatus.evolution==='testing'}
+              style={{ background:'#f0fff4', border:'1px solid #b8e8c8', borderRadius:8, color:'#128C7E', padding:'9px 16px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              {testStatus.evolution==='testing' ? '...' : testStatus.evolution==='ok' ? '✅ Conectado!' : testStatus.evolution==='error' ? '❌ Erro' : '🔌 Testar conexão'}
+            </button>
+            {testStatus.evolution==='ok' && <span style={{ fontSize:12, color:'#059669' }}>Instância ativa e pronta para envio</span>}
+            {testStatus.evolution==='error' && <span style={{ fontSize:12, color:'#dc2626' }}>Verifique a URL, API Key e nome da instância</span>}
+          </div>
+
+          <div style={{ background:'#f8f8fc', border:'1px solid #e8e8f0', borderRadius:8, padding:'10px 14px', marginTop:12, fontSize:11, color:'#6a6a7a', lineHeight:1.8 }}>
+            <strong style={{ color:'#1a1a2e' }}>Como configurar:</strong><br/>
+            1. Acesse seu servidor Evolution API<br/>
+            2. <strong>URL</strong>: endereço base da sua instalação (sem /api/v1)<br/>
+            3. <strong>API Key</strong>: chave global em <code>Settings → Global API Key</code><br/>
+            4. <strong>Instância</strong>: nome da instância WhatsApp já conectada e autenticada
+          </div>
         </Section>
 
         {/* Limites diários */}
