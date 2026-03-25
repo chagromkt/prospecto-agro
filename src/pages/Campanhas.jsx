@@ -51,22 +51,6 @@ const FlowNode = ({ step, index, selected, leadsCount, onClick, onDelete }) => {
         <div style={{ position:'absolute', top:0, left:0, background:'#0ea5e9', color:'#fff', borderRadius:20, padding:'1px 8px', fontSize:10, fontWeight:700 }}>{index+1}</div>
       </div>
       {condLabel && <div style={{ fontSize:11, color:'#0ea5e9', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:6, padding:'2px 10px', margin:'4px 0' }}>{condLabel}</div>}
-      <div style={{ display:'flex', gap:80 }}>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'#059669', background:'#f0faf4', border:'1px solid #b8e8c8', borderRadius:6, padding:'2px 10px', marginBottom:4 }}>✓ SIM</div>
-          <div style={{ width:2, height:20, background:'#b8e8c8' }} />
-          <div style={{ width:8, height:8, borderRadius:'50%', background:'#059669' }} />
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'#dc2626', background:'#fff5f5', border:'1px solid #ffd0d0', borderRadius:6, padding:'2px 10px', marginBottom:4 }}>✕ NÃO</div>
-          <div style={{ width:2, height:20, background:'#ffd0d0' }} />
-          <div style={{ width:8, height:8, borderRadius:'50%', background:'#dc2626' }} />
-        </div>
-      </div>
-      <div style={{ display:'flex', gap:80 }}><div style={{ width:2, height:20, background:'#e0e0ea' }} /><div style={{ width:2, height:20, background:'#e0e0ea' }} /></div>
-      <div style={{ width:80, height:2, background:'#e0e0ea' }} />
-      <div style={{ width:2, height:12, background:'#e0e0ea' }} />
-      <div style={{ fontSize:10, color:'#9a9ab0', marginBottom:4 }}>Continua o fluxo</div>
     </div>
   )
 
@@ -585,6 +569,7 @@ export default function Campanhas() {
   const [showPalette, setShowPalette] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [insertIdx, setInsertIdx] = useState(null)
+  const [branchInfo, setBranchInfo] = useState(null) // { parentId, type } quando adicionando a um branch
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -644,35 +629,65 @@ export default function Campanhas() {
     setShowNew(false); setNewName('')
   }
 
-  const addStep = async (typeId, atIdx) => {
+  // branchInfo: { parentId: conditionStepId, type: 'true'|'false' } — null = main flow
+  const addStep = async (typeId, atIdx, branchInfo = null) => {
     if (!sel) return
-    const idx = atIdx ?? steps.length
-    const newStep = { campaign_id:sel.id, step_order:idx+1, step_type:typeId, config:{} }
     try {
-      const data = await sb('campaign_steps', { method:'POST', body:JSON.stringify(newStep) })
-      const created = Array.isArray(data) ? data[0] : data
-      const list = [...steps.slice(0,idx), created, ...steps.slice(idx)].map((s,i)=>({...s,step_order:i+1}))
-      setSteps(list); setSelStep(created); setSelIdx(idx)
-      await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:list.length}) })
-      // Salva links imediatamente após inserção
-      for (let i = 0; i < list.length; i++) {
-        const s = list[i]
-        const nextS = list[i+1] || null
-        const patch = { step_order: i+1, next_step_id: s.step_type === 'condition' ? null : (nextS?.id || null) }
-        if (s.step_type === 'condition' && nextS && !s.true_step_id) patch.true_step_id = nextS.id
-        await sb(`campaign_steps?id=eq.${s.id}`, { method:'PATCH', body:JSON.stringify(patch) })
+      let created
+      if (branchInfo) {
+        // Step dentro de um branch: order = dentro da lista do branch
+        const branchStepsCurrent = steps.filter(s => s.config?.branch_parent === branchInfo.parentId && s.config?.branch_type === branchInfo.type)
+        const branchOrder = atIdx ?? branchStepsCurrent.length
+        const newStep = {
+          campaign_id: sel.id,
+          step_order: 9000 + branchOrder, // alto para não conflitar com main
+          step_type: typeId,
+          config: { branch_parent: branchInfo.parentId, branch_type: branchInfo.type, branch_order: branchOrder }
+        }
+        const data = await sb('campaign_steps', { method:'POST', body:JSON.stringify(newStep) })
+        created = Array.isArray(data) ? data[0] : data
+        // Recarrega todos os steps
+        const allSteps = await sb(`campaign_steps?campaign_id=eq.${sel.id}&order=step_order.asc`)
+        setSteps(allSteps || [])
+        setSelStep(created)
+        setSelIdx(null)
+      } else {
+        const idx = atIdx ?? steps.filter(s => !s.config?.branch_parent).length
+        const mainSteps = steps.filter(s => !s.config?.branch_parent)
+        const newStep = { campaign_id:sel.id, step_order:idx+1, step_type:typeId, config:{} }
+        const data = await sb('campaign_steps', { method:'POST', body:JSON.stringify(newStep) })
+        created = Array.isArray(data) ? data[0] : data
+        const newMain = [...mainSteps.slice(0,idx), created, ...mainSteps.slice(idx)].map((s,i)=>({...s,step_order:i+1}))
+        const allBranch = steps.filter(s => s.config?.branch_parent)
+        setSteps([...newMain, ...allBranch])
+        setSelStep(created); setSelIdx(idx)
+        await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:newMain.length}) })
+        for (let i = 0; i < newMain.length; i++) {
+          const s = newMain[i]
+          const nextS = newMain[i+1] || null
+          const patch = { step_order:i+1, next_step_id: s.step_type === 'condition' ? null : (nextS?.id || null) }
+          if (s.step_type === 'condition' && nextS && !s.true_step_id) patch.true_step_id = nextS.id
+          await sb(`campaign_steps?id=eq.${s.id}`, { method:'PATCH', body:JSON.stringify(patch) })
+        }
       }
     } catch (e) { console.error(e) }
     setShowPalette(false)
   }
 
-  const deleteStep = async (idx) => {
-    const step = steps[idx]
+  const deleteStep = async (stepId) => {
     try {
-      await sb(`campaign_steps?id=eq.${step.id}`, { method:'DELETE' })
-      const list = steps.filter((_,i)=>i!==idx)
+      // Ao deletar um condition, também deleta seus branch steps
+      const stepToDelete = steps.find(s => s.id === stepId)
+      if (stepToDelete?.step_type === 'condition') {
+        const branchStepsToDelete = steps.filter(s => s.config?.branch_parent === stepId)
+        for (const bs of branchStepsToDelete) {
+          await sb(`campaign_steps?id=eq.${bs.id}`, { method:'DELETE' })
+        }
+      }
+      await sb(`campaign_steps?id=eq.${stepId}`, { method:'DELETE' })
+      const list = steps.filter(s => s.id !== stepId && s.config?.branch_parent !== stepId)
       setSteps(list)
-      if (selIdx===idx) { setSelStep(null); setSelIdx(null) }
+      if (selStep?.id === stepId) { setSelStep(null); setSelIdx(null) }
     } catch (e) { console.error(e) }
   }
 
@@ -685,23 +700,48 @@ export default function Campanhas() {
   const saveFlow = async () => {
     setSaving(true)
     try {
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i]
-        const nextStep = steps[i + 1] || null
-
-        // Determina next_step_id: para condition, usa true_step_id/false_step_id se estiver no config
-        // Para todos os outros, o próximo step na ordem é o next
+      const mainSteps = steps.filter(s => !s.config?.branch_parent)
+      // Salva main steps
+      for (let i = 0; i < mainSteps.length; i++) {
+        const step = mainSteps[i]
+        const nextStep = mainSteps[i + 1] || null
         let nextStepId = nextStep?.id || null
         let trueStepId = step.true_step_id || null
         let falseStepId = step.false_step_id || null
 
-        // Se step é condition e tem on_false=stop, false_step_id permanece null
-        // Se condition tem on_true definido no config, usa esse
         if (step.step_type === 'condition') {
-          // next_step_id fica null para condition (navega via true/false)
           nextStepId = null
-          // true_step_id: usa o próximo step linear como padrão se não definido explicitamente
-          if (!trueStepId && nextStep) trueStepId = nextStep.id
+          // Linka ao primeiro step de cada branch
+          const trueBranch = steps.filter(s => s.config?.branch_parent === step.id && s.config?.branch_type === 'true')
+            .sort((a,b) => (a.config?.branch_order||0) - (b.config?.branch_order||0))
+          const falseBranch = steps.filter(s => s.config?.branch_parent === step.id && s.config?.branch_type === 'false')
+            .sort((a,b) => (a.config?.branch_order||0) - (b.config?.branch_order||0))
+          trueStepId = trueBranch[0]?.id || null
+          falseStepId = falseBranch[0]?.id || null
+
+          // Salva steps dentro de cada branch
+          for (let j = 0; j < trueBranch.length; j++) {
+            await sb(`campaign_steps?id=eq.${trueBranch[j].id}`, {
+              method:'PATCH',
+              body: JSON.stringify({
+                step_order: 9000 + j,
+                config: trueBranch[j].config,
+                next_step_id: trueBranch[j+1]?.id || null,
+                true_step_id: null, false_step_id: null
+              })
+            })
+          }
+          for (let j = 0; j < falseBranch.length; j++) {
+            await sb(`campaign_steps?id=eq.${falseBranch[j].id}`, {
+              method:'PATCH',
+              body: JSON.stringify({
+                step_order: 9100 + j,
+                config: falseBranch[j].config,
+                next_step_id: falseBranch[j+1]?.id || null,
+                true_step_id: null, false_step_id: null
+              })
+            })
+          }
         }
 
         await sb(`campaign_steps?id=eq.${step.id}`, {
@@ -715,7 +755,7 @@ export default function Campanhas() {
           })
         })
       }
-      await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:steps.length}) })
+      await sb(`campaigns?id=eq.${sel.id}`, { method:'PATCH', body:JSON.stringify({total_steps:mainSteps.length}) })
       setSaved(true); setTimeout(()=>setSaved(false),2000)
     } catch (e) { console.error(e) }
     setSaving(false)
@@ -819,8 +859,8 @@ export default function Campanhas() {
 
           {tab === 'flow' ? (
             /* Flow canvas */
-            <div style={{ flex:1, overflowY:'auto', padding:'32px 40px', display:'flex', justifyContent:'center' }}>
-              <div style={{ width:340, display:'flex', flexDirection:'column', alignItems:'center' }}>
+            <div style={{ flex:1, overflowY:'auto', padding:'24px 20px', display:'flex', justifyContent:'center' }}>
+              <div style={{ width:'100%', maxWidth:700, display:'flex', flexDirection:'column', alignItems:'center' }}>
                 {/* Alert if no list */}
                 {!sel.lead_list_id && (
                   <div style={{ width:280, background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#92400e', display:'flex', gap:8, alignItems:'center' }}>
@@ -836,14 +876,89 @@ export default function Campanhas() {
 
                 {steps.length>0 && <div style={{ width:2, height:20, background:'#b8e8c8' }} />}
 
-                {steps.map((step,i)=>(
-                  <div key={step.id} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
-                    <FlowNode step={step} index={i} selected={selIdx===i} leadsCount={leadsPerStep[step.id]||0} onClick={()=>{setSelStep(step);setSelIdx(i)}} onDelete={()=>deleteStep(i)} />
-                    <AddBtn onClick={()=>{setInsertIdx(i+1);setShowPalette(true)}} />
-                  </div>
-                ))}
+                {(() => {
+                  // Renderiza apenas main steps (sem branch_parent)
+                  const mainSteps = steps.filter(s => !s.config?.branch_parent)
+                  return mainSteps.map((step, i) => {
+                    const getBranch = (type) => steps
+                      .filter(s => s.config?.branch_parent === step.id && s.config?.branch_type === type)
+                      .sort((a,b) => (a.config?.branch_order||0) - (b.config?.branch_order||0))
 
-                <button onClick={()=>{setInsertIdx(steps.length);setShowPalette(true)}} style={{ width:280, padding:'12px', borderRadius:12, border:'2px dashed #c8c8d8', background:'#f8f8fc', color:'#9a9ab0', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}
+                    return (
+                      <div key={step.id} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                        <FlowNode step={step} index={i} selected={selStep?.id===step.id} leadsCount={leadsPerStep[step.id]||0}
+                          onClick={()=>{setSelStep(step);setSelIdx(i)}}
+                          onDelete={()=>deleteStep(step.id)} />
+
+                        {step.step_type === 'condition' ? (
+                          /* ── SPLIT VISUAL ── */
+                          <div style={{ width:'100%', maxWidth:680, display:'flex', gap:12, marginTop:4 }}>
+
+                            {/* Coluna SIM */}
+                            <div style={{ flex:1, background:'#f0faf4', border:'2px solid #b8e8c8', borderRadius:12, padding:'12px 10px', display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#059669', background:'#e0f5e9', border:'1px solid #b8e8c8', borderRadius:8, padding:'3px 12px', marginBottom:10, letterSpacing:'0.05em' }}>✓ SIM</div>
+
+                              {getBranch('true').map((bs, bi) => (
+                                <div key={bs.id} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                  {bi > 0 && <div style={{ width:2, height:16, background:'#b8e8c8' }} />}
+                                  <FlowNode step={bs} index={bi} selected={selStep?.id===bs.id} leadsCount={0}
+                                    onClick={()=>{setSelStep(bs);setSelIdx(null)}}
+                                    onDelete={()=>deleteStep(bs.id)} />
+                                </div>
+                              ))}
+
+                              {/* Botão + dentro do branch SIM */}
+                              <div style={{ marginTop: getBranch('true').length > 0 ? 0 : 4 }}>
+                                {getBranch('true').length > 0 && <div style={{ width:2, height:16, background:'#b8e8c8', margin:'0 auto' }} />}
+                                <button
+                                  onClick={() => {
+                                    setInsertIdx(null)
+                                    setShowPalette(true)
+                                    setBranchInfo({ parentId: step.id, type: 'true' })
+                                  }}
+                                  style={{ background:'#e0f5e9', border:'2px dashed #b8e8c8', borderRadius:10, color:'#059669', fontSize:12, padding:'7px 16px', cursor:'pointer', width:'100%', maxWidth:220, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                  <span style={{ fontSize:16 }}>+</span> Adicionar ao SIM
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Coluna NÃO */}
+                            <div style={{ flex:1, background:'#fff5f5', border:'2px solid #ffd0d0', borderRadius:12, padding:'12px 10px', display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                              <div style={{ fontSize:11, fontWeight:700, color:'#dc2626', background:'#fee2e2', border:'1px solid #ffd0d0', borderRadius:8, padding:'3px 12px', marginBottom:10, letterSpacing:'0.05em' }}>✕ NÃO</div>
+
+                              {getBranch('false').map((bs, bi) => (
+                                <div key={bs.id} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                  {bi > 0 && <div style={{ width:2, height:16, background:'#ffd0d0' }} />}
+                                  <FlowNode step={bs} index={bi} selected={selStep?.id===bs.id} leadsCount={0}
+                                    onClick={()=>{setSelStep(bs);setSelIdx(null)}}
+                                    onDelete={()=>deleteStep(bs.id)} />
+                                </div>
+                              ))}
+
+                              {/* Botão + dentro do branch NÃO */}
+                              <div style={{ marginTop: getBranch('false').length > 0 ? 0 : 4 }}>
+                                {getBranch('false').length > 0 && <div style={{ width:2, height:16, background:'#ffd0d0', margin:'0 auto' }} />}
+                                <button
+                                  onClick={() => {
+                                    setInsertIdx(null)
+                                    setShowPalette(true)
+                                    setBranchInfo({ parentId: step.id, type: 'false' })
+                                  }}
+                                  style={{ background:'#fee2e2', border:'2px dashed #ffd0d0', borderRadius:10, color:'#dc2626', fontSize:12, padding:'7px 16px', cursor:'pointer', width:'100%', maxWidth:220, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                  <span style={{ fontSize:16 }}>+</span> Adicionar ao NÃO
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <AddBtn onClick={()=>{setBranchInfo(null);setInsertIdx(i+1);setShowPalette(true)}} />
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
+
+                <button onClick={()=>{setBranchInfo(null);setInsertIdx(steps.filter(s=>!s.config?.branch_parent).length);setShowPalette(true)}} style={{ width:280, padding:'12px', borderRadius:12, border:'2px dashed #c8c8d8', background:'#f8f8fc', color:'#9a9ab0', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.15s' }}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor='#1e6b3a';e.currentTarget.style.color='#1e6b3a';e.currentTarget.style.background='#f0faf4'}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor='#c8c8d8';e.currentTarget.style.color='#9a9ab0';e.currentTarget.style.background='#f8f8fc'}}>
                   <span style={{ fontSize:18 }}>+</span>{steps.length===0?'Adicionar primeiro passo':'Adicionar ao final'}
@@ -933,15 +1048,15 @@ export default function Campanhas() {
 
       {/* Palette */}
       {showPalette && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={()=>setShowPalette(false)}>
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }} onClick={()=>{setShowPalette(false);setBranchInfo(null)}}>
           <div style={{ background:'#fff', borderRadius:16, padding:28, width:540, boxShadow:'0 12px 48px rgba(0,0,0,0.15)', maxHeight:'80vh', display:'flex', flexDirection:'column' }} onClick={e=>e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:16, color:'#1a1a2e', fontWeight:700 }}>Adicionar passo</h2>
-              <button onClick={()=>setShowPalette(false)} style={{ background:'none', border:'none', color:'#9a9ab0', fontSize:20, cursor:'pointer' }}>✕</button>
+              <h2 style={{ fontSize:16, color:'#1a1a2e', fontWeight:700 }}>{branchInfo ? (branchInfo.type === 'true' ? '✓ Adicionar ao SIM' : '✕ Adicionar ao NÃO') : 'Adicionar passo'}</h2>
+              <button onClick={()=>{setShowPalette(false);setBranchInfo(null)}} style={{ background:'none', border:'none', color:'#9a9ab0', fontSize:20, cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ overflowY:'auto', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               {STEP_TYPES.map(type=>(
-                <button key={type.id} onClick={()=>addStep(type.id,insertIdx)} style={{ background:'#f8f8fc', border:`1px solid ${type.id==='condition'?'#bae6fd':'#e8e8f0'}`, borderRadius:12, padding:'14px', textAlign:'left', cursor:'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s', position:'relative' }}
+                <button key={type.id} onClick={()=>addStep(type.id,insertIdx,branchInfo)} style={{ background:'#f8f8fc', border:`1px solid ${type.id==='condition'?'#bae6fd':'#e8e8f0'}`, borderRadius:12, padding:'14px', textAlign:'left', cursor:'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s', position:'relative' }}
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=type.color;e.currentTarget.style.background=`${type.color}08`}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor=type.id==='condition'?'#bae6fd':'#e8e8f0';e.currentTarget.style.background='#f8f8fc'}}>
                   {type.id==='condition' && <div style={{ position:'absolute', top:6, right:8, fontSize:9, color:'#0ea5e9', fontWeight:700, background:'#eff6ff', padding:'1px 6px', borderRadius:4 }}>IF</div>}
